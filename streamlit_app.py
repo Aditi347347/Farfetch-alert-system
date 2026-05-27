@@ -5,7 +5,6 @@ Run: streamlit run streamlit_app.py
 
 import asyncio
 import streamlit as st
-import streamlit.components.v1 as stc
 from neo4j import GraphDatabase, AsyncGraphDatabase
 from neo4j.time import Date, DateTime
 
@@ -1303,7 +1302,7 @@ with tab_viz:
                 physics=reg_physics,
                 show_edge_labels=show_edge_lbl,
             )
-            stc.html(html_reg, height=590, scrolling=False)
+            st.iframe(html_reg, height=590, scrolling=False)
             st.markdown(render_legend(REGULATORY_LEGEND), unsafe_allow_html=True)
         else:
             st.info("Regulatory graph not available.")
@@ -1353,7 +1352,7 @@ with tab_viz:
                 physics=j_physics,
                 show_edge_labels=show_edge_lbl,
             )
-            stc.html(html_j, height=610, scrolling=False)
+            st.iframe(html_j, height=610, scrolling=False)
             st.markdown(render_legend(JOURNEY_LEGEND), unsafe_allow_html=True)
 
     # ── SKU SUBGRAPH ──────────────────────────────────────────────────────────
@@ -1394,7 +1393,7 @@ with tab_viz:
                 physics=s_physics,
                 show_edge_labels=show_edge_lbl,
             )
-            stc.html(html_s, height=570, scrolling=False)
+            st.iframe(html_s, height=570, scrolling=False)
             st.markdown(render_legend(SKU_LEGEND), unsafe_allow_html=True)
 
     # ── CONTEXT / RCA ─────────────────────────────────────────────────────────
@@ -1436,5 +1435,5 @@ with tab_viz:
                 physics=c_physics,
                 show_edge_labels=show_edge_lbl,
             )
-            stc.html(html_ctx, height=570, scrolling=False)
+            st.iframe(html_ctx, height=570, scrolling=False)
             st.markdown(render_legend(CONTEXT_LEGEND), unsafe_allow_html=True)
