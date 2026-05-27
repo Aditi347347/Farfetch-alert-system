@@ -1,0 +1,24 @@
+# ── Line-ending policy ─────────────────────────────────────────────────────
+# Default: normalize to LF in the repo, checkout as-is on Windows (CRLF).
+* text=auto
+
+# Shell scripts MUST be LF on checkout — Docker/Linux will reject CRLF scripts.
+*.sh text eol=lf
+
+# Python source — LF everywhere for consistency.
+*.py text eol=lf
+
+# Config / data files — LF.
+*.toml  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.cypher text eol=lf
+*.txt   text eol=lf
+*.md    text eol=lf
+*.example text eol=lf
+Dockerfile text eol=lf
+
+# Binary files — never touch line endings.
+*.zip   binary
+*.pyc   binary
+*.so    binary

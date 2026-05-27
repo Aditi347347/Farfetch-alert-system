@@ -1,0 +1,65 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+env/
+venv/
+.venv/
+ENV/
+pip-wheel-metadata/
+
+# ── Environment / secrets ─────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+# Keep .env.example (it has no real secrets)
+
+# ── Streamlit ─────────────────────────────────────────────────────────────────
+# credentials.toml contains email — exclude even if blank
+.streamlit/credentials.toml
+# Keep .streamlit/config.toml (safe to commit)
+
+# ── Neo4j local data (Docker volumes via bind mounts) ─────────────────────────
+neo4j_data/
+neo4j_logs/
+
+# ── IDEs ──────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ── Logs & temp ───────────────────────────────────────────────────────────────
+*.log
+*.tmp
+*.temp
+htmlcov/
+.coverage
+.pytest_cache/
+
+# ── Archives (keep source, skip binary bundles) ───────────────────────────────
+codes.zip
+
+# ── Claude internal ───────────────────────────────────────────────────────────
+.claude/

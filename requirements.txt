@@ -1,0 +1,16 @@
+# Farfetch Compliance Alert System — Python dependencies
+# Generated with Python 3.11 (also tested on 3.14)
+
+# Core UI
+streamlit>=1.35.0,<2.0.0
+
+# Neo4j Python driver (sync + async sessions)
+neo4j>=5.0.0,<7.0.0
+
+# Interactive graph visualization (vis.js wrapper)
+pyvis>=0.3.2,<1.0.0
+
+# pyvis transitive deps (pin to avoid breakage)
+networkx>=3.0
+jinja2>=3.1.0
+jsonpickle>=3.0.0
