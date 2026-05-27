@@ -29,9 +29,18 @@ st.set_page_config(
 
 # ── Neo4j connection ──────────────────────────────────────────────────────────
 import os
-NEO4J_URI      = os.getenv("NEO4J_URI",      "bolt://localhost:7687")
-NEO4J_USER     = os.getenv("NEO4J_USER",     "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "farfetch123")
+
+def _cfg(key: str, default: str) -> str:
+    """Read config: st.secrets first (Streamlit Community Cloud),
+    then environment variable, then hard default."""
+    try:
+        return st.secrets[key]          # works on Streamlit Cloud
+    except Exception:
+        return os.getenv(key, default)  # works locally / Docker
+
+NEO4J_URI      = _cfg("NEO4J_URI",      "bolt://localhost:7687")
+NEO4J_USER     = _cfg("NEO4J_USER",     "neo4j")
+NEO4J_PASSWORD = _cfg("NEO4J_PASSWORD", "farfetch123")
 
 def get_driver():
     return GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
