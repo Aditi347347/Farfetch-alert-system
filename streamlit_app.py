@@ -346,9 +346,9 @@ def set_rca_order(val):
 #  GLOBAL CSS + HEADER
 # ═══════════════════════════════════════════════════════════════════════════════
 st.markdown("""
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=Inter:wght@300;400;500;600;700&display=swap');
+
   /* ── EXL typography ── */
   html, body, .stApp, [class*="css"], p, span, div, label, input, button {
       font-family: 'Inter', -apple-system, sans-serif !important;

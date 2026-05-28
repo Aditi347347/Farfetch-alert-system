@@ -181,15 +181,16 @@ def _short_label(label: str, props: dict) -> str:
     return f"{label}\n{val}" if val else label
 
 def _tooltip(label: str, props: dict) -> str:
-    lines = [f"<b style='color:#C9A84C;font-size:13px'>[{label}]</b>"]  # EXL gold
+    """Plain-text tooltip — vis.js renders title strings as text, not HTML."""
+    lines = [f"[ {label} ]"]
     for k, v in props.items():
         if v is None:
             continue
         s = str(v)
         if len(s) > 70:
             s = s[:67] + "…"
-        lines.append(f"<b>{k}:</b> {s}")
-    return "<br>".join(lines[:12])
+        lines.append(f"  {k}: {s}")
+    return "\n".join(lines[:12])
 
 
 # ── pyvis HTML builder ─────────────────────────────────────────────────────────
