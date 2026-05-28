@@ -181,7 +181,7 @@ def _short_label(label: str, props: dict) -> str:
     return f"{label}\n{val}" if val else label
 
 def _tooltip(label: str, props: dict) -> str:
-    lines = [f"<b style='color:#4A90D9;font-size:13px'>[{label}]</b>"]
+    lines = [f"<b style='color:#C9A84C;font-size:13px'>[{label}]</b>"]  # EXL gold
     for k, v in props.items():
         if v is None:
             continue
@@ -218,8 +218,8 @@ def build_pyvis_html(
     net = Network(
         height=f"{height}px",
         width="100%",
-        bgcolor="#0d1117",
-        font_color="#ffffff",
+        bgcolor="#18140F",        # EXL deep warm dark
+        font_color="#F5EDD6",     # EXL warm off-white
         directed=True,
         notebook=False,
     )
@@ -241,8 +241,8 @@ def build_pyvis_html(
             title=n.get("title", ""),
             color={
                 "background": c, "border": b,
-                "highlight": {"background": "#FFD700", "border": "#FFA500"},
-                "hover":     {"background": "#FFE680", "border": "#FFD700"},
+                "highlight": {"background": "#C9A84C", "border": "#8B6914"},  # EXL gold
+                "hover":     {"background": "#E8C870", "border": "#C9A84C"},  # EXL gold hover
             },
             size=n.get("size", 20),
             shape=n.get("shape", "ellipse"),
@@ -257,7 +257,7 @@ def build_pyvis_html(
             e["from"], e["to"],
             label=e.get("label", "") if show_edge_labels else "",
             title=e.get("label", ""),
-            color={"color": ec, "highlight": "#FFD700", "hover": "#FFD700"},
+            color={"color": ec, "highlight": "#C9A84C", "hover": "#C9A84C"},  # EXL gold
             width=e.get("width", 1.6),
             arrows="to",
         )
@@ -636,16 +636,22 @@ CONTEXT_LEGEND = [
 
 
 def render_legend(items: list[tuple[str, str]]) -> str:
-    """Return an HTML legend strip for the node types in this graph."""
-    html = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 0 0">'
+    """Return an EXL-styled HTML legend strip for the node types in this graph."""
+    html = (
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0 0;'
+        'padding:8px 12px;background:#2C2117;border-radius:6px;'
+        'border:1px solid #3d3020">'
+    )
     for label, _ in items:
         st = NODE_VIZ.get(label, {"color": "#778899"})
         c  = st["color"]
         html += (
-            f'<div style="display:flex;align-items:center;gap:5px">'
-            f'<div style="width:14px;height:14px;border-radius:3px;background:{c};'
-            f'border:1px solid rgba(255,255,255,.3);flex-shrink:0"></div>'
-            f'<span style="font-size:11px;color:#9ca3af">{label}</span>'
+            f'<div style="display:flex;align-items:center;gap:5px;'
+            f'padding:2px 8px;border-radius:4px;background:#18140F">'
+            f'<div style="width:10px;height:10px;border-radius:2px;background:{c};'
+            f'border:1px solid rgba(201,168,76,.4);flex-shrink:0"></div>'
+            f'<span style="font-size:10px;color:#C9A84C;font-weight:600;'
+            f'letter-spacing:0.5px">{label}</span>'
             f'</div>'
         )
     html += '</div>'

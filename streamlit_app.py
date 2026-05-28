@@ -583,7 +583,7 @@ with tab_check:
                 html += detail_row("Return Initiated", str(ret_node.get("initiated_at", "—")))
 
             st.markdown(
-                f'<div style="background:white;border:1px solid #dde2ea;border-radius:10px;'
+                f'<div style="background:#F9F5EE;border:1px solid #D4C5A0;border-radius:10px;'
                 f'border-top:4px solid #2980b9;padding:16px 18px">{html}</div>',
                 unsafe_allow_html=True,
             )
@@ -680,7 +680,7 @@ with tab_check:
                     )
 
                 st.markdown(
-                    f'<div style="background:white;border:1px solid #dde2ea;border-radius:10px;'
+                    f'<div style="background:#F9F5EE;border:1px solid #D4C5A0;border-radius:10px;'
                     f'border-top:4px solid #7d3c98;padding:16px 18px">{html}</div>',
                     unsafe_allow_html=True,
                 )
@@ -759,9 +759,9 @@ with tab_check:
                 status_color = "#c0392b" if status == "VIOLATED" else "#2980b9"
 
                 st.markdown(f"""
-                <div style="background:white;border-radius:10px;margin-bottom:12px;
+                <div style="background:#F9F5EE;border-radius:10px;margin-bottom:12px;
                             border-left:5px solid {color};padding:16px 20px;
-                            box-shadow:0 1px 4px rgba(0,0,0,.06)">
+                            box-shadow:0 2px 8px rgba(0,0,0,.15)">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;
                               margin-bottom:8px">
                     <span style="font-weight:700;font-size:13px;font-family:monospace">
@@ -857,8 +857,8 @@ with tab_rca:
 
             def _kpi(col, label, value, sub, color):
                 col.markdown(
-                    f'<div style="background:white;border-top:4px solid {color};'
-                    f'border:1px solid #dde2ea;border-radius:10px;padding:14px 16px;'
+                    f'<div style="background:#F9F5EE;border-top:4px solid {color};'
+                    f'border:1px solid #D4C5A0;border-radius:10px;padding:14px 16px;'
                     f'text-align:center">'
                     f'<div style="font-size:26px;font-weight:800;color:{color}">{value}</div>'
                     f'<div style="font-size:12px;font-weight:700;color:#1a3a5c;margin:2px 0">'
@@ -942,9 +942,9 @@ with tab_rca:
                     border_extra = "border:2px solid #1a3a5c;" if is_selected else ""
 
                     st.markdown(f"""
-                    <div style="background:white;border-radius:10px;margin-bottom:8px;
+                    <div style="background:#F9F5EE;border-radius:10px;margin-bottom:8px;
                                 border-left:6px solid #c0392b;padding:14px 20px;
-                                box-shadow:0 1px 5px rgba(0,0,0,.07);{border_extra}">
+                                box-shadow:0 2px 8px rgba(0,0,0,.15);{border_extra}">
                       <div style="display:flex;justify-content:space-between;align-items:center">
                         <div>
                           <span style="font-weight:800;font-size:15px;font-family:monospace;
@@ -1236,7 +1236,7 @@ with tab_rca:
                                     delta_v  = anom_r.get("delta", "—")
                                     anom_html = (
                                         f'<div style="margin-top:8px;padding:8px 12px;'
-                                        f'background:#f8f9fa;border-radius:6px;font-size:12px">'
+                                        f'background:#EDE5D0;border-radius:6px;font-size:12px;border:1px solid #D4C5A0">'
                                         f'<div style="font-weight:700;color:#374151;margin-bottom:4px">'
                                         f'Data Anomaly: {a_type}</div>'
                                         f'<div style="display:flex;gap:16px;flex-wrap:wrap">'
@@ -1250,9 +1250,9 @@ with tab_rca:
                                     )
 
                                 st.markdown(
-                                    f'<div style="background:white;border-left:5px solid {col_r};'
+                                    f'<div style="background:#F9F5EE;border-left:5px solid {col_r};'
                                     f'border-radius:8px;padding:14px 18px;margin-bottom:10px;'
-                                    f'border:1px solid #e5e7eb">'
+                                    f'border:1px solid #D4C5A0">'
                                     f'<div style="display:flex;justify-content:space-between;'
                                     f'margin-bottom:6px">'
                                     f'  <span style="font-family:monospace;font-weight:700;'
@@ -1318,8 +1318,9 @@ with tab_viz:
 
     # ── Quick-pick fined orders ───────────────────────────────────────────────
     st.markdown(
-        '<div style="font-size:11px;color:#6b7280;margin-bottom:4px">'
-        'Quick-pick fined orders:</div>',
+        '<div style="font-size:10px;color:#C9A84C;font-weight:600;'
+        'letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">'
+        'Quick-pick fined orders</div>',
         unsafe_allow_html=True,
     )
     qp_cols = st.columns(10)
