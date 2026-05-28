@@ -18,6 +18,8 @@ from __future__ import annotations
 import json
 from neo4j.time import Date, DateTime
 
+__version__ = "2.0.0"   # bump this to invalidate stale .pyc on Streamlit Cloud
+
 # ── Node visual styles ─────────────────────────────────────────────────────────
 NODE_VIZ: dict[str, dict] = {
     # ── Supply-chain / order nodes ─────────────────────────────────────────────
