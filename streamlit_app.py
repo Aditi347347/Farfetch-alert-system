@@ -20,8 +20,8 @@ from graph_viz import (
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Farfetch Compliance Alert System",
-    page_icon="⚖️",
+    page_title="EXL · Farfetch Compliance Alert System",
+    page_icon="🔴",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -347,18 +347,95 @@ def set_rca_order(val):
 # ═══════════════════════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
+  /* ── Layout ── */
   .block-container { padding-top: 0 !important; padding-bottom: 2rem; }
   section[data-testid="stSidebar"] { display: none; }
   div[data-testid="stRadio"] > div { gap: 6px; }
+
+  /* ── EXL tab styling ── */
+  div[data-baseweb="tab-list"] {
+      background: #2C2117 !important;
+      border-radius: 8px;
+      padding: 4px;
+      gap: 2px;
+  }
+  div[data-baseweb="tab"] {
+      color: #a8956a !important;
+      font-weight: 600;
+      border-radius: 6px !important;
+  }
+  div[data-baseweb="tab"][aria-selected="true"] {
+      background: #C9A84C !important;
+      color: #18140F !important;
+  }
+  div[data-baseweb="tab-highlight"] { display: none !important; }
+
+  /* ── EXL button styling ── */
+  div[data-testid="stButton"] > button[kind="primary"] {
+      background: #C9A84C !important;
+      color: #18140F !important;
+      font-weight: 700;
+      border: none;
+  }
+  div[data-testid="stButton"] > button[kind="primary"]:hover {
+      background: #b8952f !important;
+  }
+
+  /* ── Metric cards ── */
+  div[data-testid="stMetric"] {
+      background: #2C2117;
+      border: 1px solid #3d3020;
+      border-radius: 8px;
+      padding: 12px 16px;
+  }
+  div[data-testid="stMetric"] label { color: #a8956a !important; }
+  div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+      color: #C9A84C !important;
+  }
 </style>
 """, unsafe_allow_html=True)
 
+# ── EXL header bar ────────────────────────────────────────────────────────────
 st.markdown("""
-<div style="background:#1a3a5c;color:white;padding:14px 28px;
-            margin:-1rem -1rem 1.5rem -1rem;
-            display:flex;justify-content:space-between;align-items:center">
-  <span style="font-size:18px;font-weight:700">&#9878; Farfetch Compliance Alert System</span>
-  <span style="font-size:12px;color:#8aafc8">Graph-native &middot; Multi-agent &middot; Neo4j</span>
+<div style="
+  background: linear-gradient(90deg, #1B1208 0%, #231910 50%, #1B1208 100%);
+  border-bottom: 2px solid #C9A84C;
+  padding: 14px 28px;
+  margin: -1rem -1rem 1.5rem -1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+">
+  <div style="display:flex; align-items:center; gap:16px;">
+    <!-- EXL logo block -->
+    <div style="
+      background:#E31837;
+      padding: 8px 12px;
+      border-radius: 5px;
+      font-weight: 900;
+      font-size: 18px;
+      color: white;
+      letter-spacing: 2px;
+      line-height: 1;
+    ">EXL</div>
+    <!-- Title block -->
+    <div>
+      <div style="color:#C9A84C; font-size:9px; font-weight:700; letter-spacing:4px; text-transform:uppercase; margin-bottom:2px;">
+        Compliance Intelligence
+      </div>
+      <div style="color:#F5EDD6; font-size:16px; font-weight:700; letter-spacing:0.5px;">
+        Farfetch Alert System
+      </div>
+    </div>
+  </div>
+  <div style="text-align:right;">
+    <div style="color:#C9A84C; font-size:11px; font-weight:600; letter-spacing:1px;">
+      &#9679; LIVE
+    </div>
+    <div style="color:#7a6a50; font-size:11px; margin-top:2px;">
+      Graph-native &middot; Multi-agent &middot; Neo4j
+    </div>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 

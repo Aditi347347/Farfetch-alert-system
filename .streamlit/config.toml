@@ -7,8 +7,9 @@ enableCORS = false
 gatherUsageStats = false
 
 [theme]
-primaryColor       = "#4A90D9"
-backgroundColor    = "#0F1117"
-secondaryBackgroundColor = "#1A1D2E"
-textColor          = "#FAFAFA"
-font               = "sans serif"
+# EXL brand colours
+primaryColor             = "#C9A84C"   # EXL gold — buttons, active tabs, highlights
+backgroundColor          = "#18140F"   # Deep warm black (EXL dark canvas)
+secondaryBackgroundColor = "#2C2117"   # Elevated panels / sidebar
+textColor                = "#F5EDD6"   # Warm off-white
+font                     = "sans serif"
