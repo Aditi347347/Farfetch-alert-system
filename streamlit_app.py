@@ -355,6 +355,8 @@ st.markdown("""
   }
 
   /* ── Layout ── */
+  /* Hide Streamlit's own top toolbar so our EXL header is the only header */
+  header[data-testid="stHeader"] { display: none !important; }
   .block-container { padding-top: 0 !important; padding-bottom: 2rem; }
   section[data-testid="stSidebar"] { display: none; }
   div[data-testid="stRadio"] > div { gap: 6px; }
@@ -454,31 +456,33 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── EXL header bar ────────────────────────────────────────────────────────────
+# margin: 0 -1rem (sides) — extends edge-to-edge; NO negative top margin
+# so it is never clipped by the block-container's overflow boundary
 st.markdown("""
-<div style="background:#18140F;border-bottom:1px solid #3d3020;
-            padding:14px 28px;margin:-1rem -1rem 1.5rem -1rem;
+<div style="background:#18140F;border-bottom:2px solid #3d3020;
+            padding:16px 28px;margin:0 -1rem 1.5rem -1rem;
             display:flex;justify-content:space-between;align-items:center;
             font-family:'Inter',sans-serif">
-  <div style="display:flex;align-items:center;gap:16px">
-    <div style="background:#E31837;padding:7px 11px;
-                font-weight:900;font-size:16px;color:white;letter-spacing:2px;
+  <div style="display:flex;align-items:center;gap:18px">
+    <div style="background:#E31837;padding:8px 13px;
+                font-weight:900;font-size:17px;color:#ffffff;letter-spacing:2.5px;
                 line-height:1;font-family:'Inter',sans-serif">EXL</div>
     <div>
-      <div style="color:#7a6a50;font-size:8px;font-weight:600;
-                  letter-spacing:4px;text-transform:uppercase;margin-bottom:3px">
+      <div style="color:#9a8a65;font-size:9px;font-weight:600;
+                  letter-spacing:4px;text-transform:uppercase;margin-bottom:4px">
         Compliance Intelligence
       </div>
-      <div style="color:#F5EDD6;font-size:15px;font-weight:400;letter-spacing:0.5px;
+      <div style="color:#F5EDD6;font-size:16px;font-weight:400;letter-spacing:0.5px;
                   font-family:'Cormorant Garamond',serif">
-        Farfetch <em>Alert System</em>
+        Farfetch&nbsp;<em>Alert System</em>
       </div>
     </div>
   </div>
   <div style="text-align:right">
-    <div style="color:#C9A84C;font-size:9px;font-weight:600;letter-spacing:2px">
+    <div style="color:#C9A84C;font-size:9px;font-weight:700;letter-spacing:2.5px">
       &#9679;&nbsp;LIVE
     </div>
-    <div style="color:#4a3e2e;font-size:10px;margin-top:3px;letter-spacing:1px">
+    <div style="color:#6a5e45;font-size:10px;margin-top:4px;letter-spacing:1.5px">
       GRAPH-NATIVE &middot; MULTI-AGENT &middot; NEO4J
     </div>
   </div>
