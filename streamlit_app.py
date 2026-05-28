@@ -582,12 +582,13 @@ with tab_check:
 
             def detail_row(label, val, rowflag=None):
                 color = ("color:#c0392b;font-weight:700" if rowflag == "red"
-                         else "color:#1e8449;font-weight:700" if rowflag == "green" else "")
+                         else "color:#1e8449;font-weight:700" if rowflag == "green"
+                         else "color:#1C1814")
                 return (
                     f'<div style="display:flex;justify-content:space-between;padding:6px 0;'
-                    f'border-bottom:1px solid #f0f0f5;font-size:13px">'
-                    f'<span style="color:#6b7280">{label}</span>'
-                    f'<span style="{color}">{val if val is not None else "—"}</span></div>'
+                    f'border-bottom:1px solid #D4C5A0;font-size:13px">'
+                    f'<span style="color:#7a6055;font-size:12px">{label}</span>'
+                    f'<span style="font-weight:500;{color}">{val if val is not None else "—"}</span></div>'
                 )
 
             currency  = ord_node.get("currency", "EUR")
@@ -868,10 +869,10 @@ with tab_rca:
 
     def _kv(label, val):
         return (
-            f'<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid #f0f0f5;'
+            f'<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #D4C5A0;'
             f'font-size:13px">'
-            f'<span style="color:#6b7280;min-width:160px;flex-shrink:0">{label}</span>'
-            f'<span style="font-weight:500">{val}</span></div>'
+            f'<span style="color:#7a6055;min-width:160px;flex-shrink:0;font-size:12px">{label}</span>'
+            f'<span style="font-weight:500;color:#1C1814">{val}</span></div>'
         )
 
     # ── Load context graph data ───────────────────────────────────────────────
@@ -943,18 +944,20 @@ with tab_rca:
             )
             if checkpoints:
                 cp_html = ('<div style="display:flex;align-items:stretch;gap:0;'
-                           'flex-wrap:wrap;margin-bottom:16px;border:1px solid #3d3020">')
+                           'flex-wrap:wrap;margin-bottom:16px;border:1px solid #3d3020;'
+                           'background:#1e1a14">')
                 for i, cp in enumerate(checkpoints):
                     stage = cp.get("stage", "")
+                    col_stage = CP_STAGE_COLOR.get(stage, "#C9A84C")
                     is_last = (i == len(checkpoints) - 1)
                     border_right = "" if is_last else "border-right:1px solid #3d3020;"
                     cp_html += (
-                        f'<div style="{border_right}padding:8px 14px;'
+                        f'<div style="{border_right}padding:10px 14px;'
                         f'font-size:10px;font-weight:600;text-align:center;'
-                        f'flex:1;min-width:100px;color:#7a6a50;">'
-                        f'<div style="font-size:8px;letter-spacing:2px;color:#4a3e2e;'
-                        f'margin-bottom:4px">CP-0{i+1}</div>'
-                        f'<div style="letter-spacing:0.5px">'
+                        f'flex:1;min-width:100px;border-top:2px solid {col_stage}">'
+                        f'<div style="font-size:8px;letter-spacing:2px;color:#7a6a50;'
+                        f'margin-bottom:5px">CP-0{i+1}</div>'
+                        f'<div style="letter-spacing:0.5px;color:#C9A84C">'
                         f'{stage.replace("_", " ")}</div>'
                         f'</div>'
                     )
@@ -994,7 +997,7 @@ with tab_rca:
                         if sev_counts.get(sv, 0):
                             sev_badges += _chip2(
                                 f"{sv.upper()} x{sev_counts[sv]}",
-                                SEV_COL.get(sv, "#333"), "white",
+                                fg=SEV_COL.get(sv, "#333"),
                             )
 
                     is_selected  = (st.session_state.rca_order_id == oid_f)
@@ -1096,21 +1099,23 @@ with tab_rca:
                                 fg2, bg2     = FINE_STATUS_COLOR.get(
                                     fine_status2, ("#c0392b", "#fdecea"))
                                 st.markdown(
-                                    f'<div style="background:white;border-radius:10px;'
-                                    f'border-top:4px solid #c0392b;border:1px solid #dde2ea;'
+                                    f'<div style="background:#F9F5EE;'
+                                    f'border-top:4px solid #c0392b;border:1px solid #D4C5A0;'
                                     f'padding:18px 20px">'
-                                    f'<div style="font-size:12px;font-weight:700;color:#6b7280;'
-                                    f'text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">'
+                                    f'<div style="font-size:11px;font-weight:700;color:#7a6055;'
+                                    f'text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">'
                                     f'Regulatory Fine Issued</div>'
                                     f'<div style="font-size:32px;font-weight:900;color:#c0392b;'
-                                    f'margin-bottom:4px">&euro;{fine_amount2:,.0f}</div>'
+                                    f'font-family:\'Cormorant Garamond\',serif;margin-bottom:8px">'
+                                    f'&euro;{fine_amount2:,.0f}</div>'
                                     + _kv("Fine ID",    fine_node.get("fine_id", "—"))
                                     + _kv("Fine Basis", fine_node.get("fine_basis", "—"))
                                     + _kv("Issued By",  fine_node.get("issued_by", "—"))
                                     + _kv("Issued At",  str(fine_node.get("issued_at", "—")))
                                     + _kv("Status",
                                            f'<span style="background:{bg2};color:{fg2};'
-                                           f'padding:2px 10px;border-radius:8px;font-weight:700">'
+                                           f'border:1px solid {fg2};'
+                                           f'padding:2px 10px;font-weight:700">'
                                            f'{fine_status2}</span>')
                                     + '</div>',
                                     unsafe_allow_html=True,
@@ -1118,11 +1123,11 @@ with tab_rca:
 
                             with r1b:
                                 st.markdown(
-                                    f'<div style="background:white;border-radius:10px;'
-                                    f'border-top:4px solid #7d3c98;border:1px solid #dde2ea;'
+                                    f'<div style="background:#F9F5EE;'
+                                    f'border-top:4px solid #7d3c98;border:1px solid #D4C5A0;'
                                     f'padding:18px 20px">'
-                                    f'<div style="font-size:12px;font-weight:700;color:#6b7280;'
-                                    f'text-transform:uppercase;letter-spacing:.6px;'
+                                    f'<div style="font-size:11px;font-weight:700;color:#7a6055;'
+                                    f'text-transform:uppercase;letter-spacing:1.5px;'
                                     f'margin-bottom:12px">Violated Obligation</div>'
                                     + _kv("Obligation ID", obl_node.get("obl_id", "—"))
                                     + _kv("Type",          obl_node.get("type", "—"))
@@ -1143,22 +1148,22 @@ with tab_rca:
                             contrib   = rca_node.get("contributing_factors") or []
 
                             rca_html = (
-                                f'<div style="background:white;border-radius:10px;'
-                                f'border-left:5px solid #c0392b;border:1px solid #dde2ea;'
+                                f'<div style="background:#F9F5EE;'
+                                f'border-left:5px solid #c0392b;border:1px solid #D4C5A0;'
                                 f'padding:18px 20px">'
-                                f'<div style="font-size:13px;font-weight:700;color:#6b7280;'
-                                f'text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">'
+                                f'<div style="font-size:11px;font-weight:700;color:#7a6055;'
+                                f'text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">'
                                 f'Root Cause</div>'
-                                f'<div style="font-size:14px;color:#1a1a1a;line-height:1.6;'
-                                f'margin-bottom:16px;padding:10px 14px;background:#fef9f0;'
-                                f'border-radius:6px;border-left:3px solid #e67e22">'
+                                f'<div style="font-size:14px;color:#1C1814;line-height:1.6;'
+                                f'margin-bottom:16px;padding:10px 14px;background:#EDE5D0;'
+                                f'border-left:3px solid #e67e22">'
                                 f'{rca_node.get("root_cause", "—")}</div>'
                             )
 
                             if contrib:
                                 rca_html += (
-                                    f'<div style="font-size:13px;font-weight:700;color:#6b7280;'
-                                    f'text-transform:uppercase;letter-spacing:.5px;'
+                                    f'<div style="font-size:11px;font-weight:700;color:#7a6055;'
+                                    f'text-transform:uppercase;letter-spacing:1.5px;'
                                     f'margin-bottom:8px">Contributing Factors</div>'
                                 )
                                 for cf in contrib:
@@ -1167,29 +1172,29 @@ with tab_rca:
                                         f'margin-bottom:6px;font-size:13px">'
                                         f'<span style="color:#e67e22;font-weight:700;margin-top:1px">'
                                         f'&#9656;</span>'
-                                        f'<span style="color:#374151">{cf}</span></div>'
+                                        f'<span style="color:#2C2117">{cf}</span></div>'
                                     )
                                 rca_html += '<div style="margin-bottom:12px"></div>'
 
                             dc = rca_node.get("data_condition", "")
                             if dc:
                                 rca_html += (
-                                    f'<div style="font-size:12px;font-weight:700;color:#6b7280;'
-                                    f'text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">'
+                                    f'<div style="font-size:11px;font-weight:700;color:#7a6055;'
+                                    f'text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px">'
                                     f'Data Condition Triggered</div>'
                                     f'<div style="font-family:monospace;font-size:12px;color:#1a4f8a;'
-                                    f'padding:8px 12px;background:#eaf3ff;border-radius:6px;'
+                                    f'padding:8px 12px;background:#D9E8F5;border-left:3px solid #1a4f8a;'
                                     f'margin-bottom:12px;line-height:1.6">{dc}</div>'
                                 )
 
                             er = rca_node.get("escalation_reason", "")
                             if er:
                                 rca_html += (
-                                    f'<div style="font-size:12px;font-weight:700;color:#6b7280;'
-                                    f'text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">'
+                                    f'<div style="font-size:11px;font-weight:700;color:#7a6055;'
+                                    f'text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px">'
                                     f'Why Fined (Escalation Reason)</div>'
                                     f'<div style="font-size:13px;color:#7b241c;padding:8px 12px;'
-                                    f'background:#fdecea;border-radius:6px;margin-bottom:12px;'
+                                    f'background:#F5D5D0;border-left:3px solid #c0392b;margin-bottom:12px;'
                                     f'line-height:1.5">{er}</div>'
                                 )
 
@@ -1238,7 +1243,7 @@ with tab_rca:
                                     for sv in cp_data.get("severities", []):
                                         sev_html2 += _chip2(
                                             sv.upper(),
-                                            SEV_COL.get(sv, "#999"), "white", "10px",
+                                            fg=SEV_COL.get(sv, "#999"),
                                         )
 
                                 cp_tl += (
@@ -1295,16 +1300,20 @@ with tab_rca:
                                     delta_v  = anom_r.get("delta", "—")
                                     anom_html = (
                                         f'<div style="margin-top:8px;padding:8px 12px;'
-                                        f'background:#EDE5D0;border-radius:6px;font-size:12px;border:1px solid #D4C5A0">'
-                                        f'<div style="font-weight:700;color:#374151;margin-bottom:4px">'
-                                        f'Data Anomaly: {a_type}</div>'
-                                        f'<div style="display:flex;gap:16px;flex-wrap:wrap">'
-                                        f'<span>Actual: '
-                                        f'<code style="color:#c0392b">{actual_v}</code></span>'
-                                        f'<span>Expected: '
-                                        f'<code style="color:#1e8449">{expect_v}</code></span>'
-                                        f'<span>Delta: '
-                                        f'<code style="color:#e67e22">{delta_v}</code></span>'
+                                        f'background:#EDE5D0;font-size:12px;border:1px solid #D4C5A0">'
+                                        f'<div style="font-weight:700;color:#2C2117;margin-bottom:6px;'
+                                        f'font-size:11px;letter-spacing:1px;text-transform:uppercase">'
+                                        f'Data Anomaly &mdash; {a_type}</div>'
+                                        f'<div style="display:flex;gap:20px;flex-wrap:wrap;color:#2C2117">'
+                                        f'<span style="color:#5a4a38">Actual:&nbsp;'
+                                        f'<span style="color:#c0392b;font-family:monospace;font-weight:700">'
+                                        f'{actual_v}</span></span>'
+                                        f'<span style="color:#5a4a38">Expected:&nbsp;'
+                                        f'<span style="color:#1e8449;font-family:monospace;font-weight:700">'
+                                        f'{expect_v}</span></span>'
+                                        f'<span style="color:#5a4a38">Delta:&nbsp;'
+                                        f'<span style="color:#d35400;font-family:monospace;font-weight:700">'
+                                        f'{delta_v}</span></span>'
                                         f'</div></div>'
                                     )
 
