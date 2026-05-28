@@ -14,8 +14,11 @@ from graph_viz import (
     build_journey_graph,
     build_sku_graph,
     build_context_subgraph,
+    build_order_network,
     render_legend,
+    render_order_network_legend,
     JOURNEY_LEGEND, REGULATORY_LEGEND, SKU_LEGEND, CONTEXT_LEGEND,
+    ORDER_NETWORK_LEGEND,
 )
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -332,10 +335,12 @@ for key, default in [
     ("run_error",      None),
     ("rca_order_id",   None),
     ("rca_data",       None),
-    ("viz_order_id",   "ORD-1001"),
-    ("viz_reg_nodes",  None),        # cached regulatory graph nodes
-    ("viz_reg_edges",  None),        # cached regulatory graph edges
-    ("viz_reg_ver",    None),        # version stamp — if stale, graph is rebuilt
+    ("viz_order_id",        "ORD-1001"),
+    ("viz_reg_nodes",       None),        # cached regulatory graph nodes
+    ("viz_reg_edges",       None),        # cached regulatory graph edges
+    ("viz_reg_ver",         None),        # version stamp — if stale, graph is rebuilt
+    ("viz_order_net_nodes", None),        # cached order-network nodes (all orders)
+    ("viz_order_net_edges", None),        # cached order-network edges (all orders)
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -1418,11 +1423,12 @@ with tab_viz:
     st.markdown("---")
 
     # ── Sub-tabs ──────────────────────────────────────────────────────────────
-    vt1, vt2, vt3, vt4 = st.tabs([
+    vt1, vt2, vt3, vt4, vt5 = st.tabs([
         "📜 Regulatory Framework",
         "📦 Product Journey",
         "🧬 SKU Subgraph",
         "🔍 Context / RCA",
+        "📊 Order Network",
     ])
 
     # ── REGULATORY FRAMEWORK ─────────────────────────────────────────────────
@@ -1600,3 +1606,66 @@ with tab_viz:
             )
             st.iframe(html_ctx, height=570)
             st.markdown(render_legend(CONTEXT_LEGEND), unsafe_allow_html=True)
+
+    # ── ORDER DATASET NETWORK ─────────────────────────────────────────────────
+    with vt5:
+        st.markdown(
+            "**Order Dataset Network** — all orders interconnected through shared attribute hubs. "
+            "**Dots** = individual orders (colour = compliance result). "
+            "**Hexagons** = shared context: Destination · Seller Country · "
+            "Product Category · Raw Material · Violated Obligation · "
+            "Result · Detection Stage · Agent · Value Tier · Fine Status. "
+            "Orders sharing a hexagon are related through that attribute."
+        )
+
+        # Load order network — cached globally (covers all orders, not just the
+        # selected one).  Use the Refresh button to reload after new compliance runs.
+        if st.session_state.viz_order_net_nodes is None:
+            try:
+                drv = get_driver()
+                with drv.session() as sess:
+                    on_nodes, on_edges = sess.execute_read(build_order_network)
+                drv.close()
+                st.session_state.viz_order_net_nodes = on_nodes
+                st.session_state.viz_order_net_edges = on_edges
+            except Exception as e:
+                st.error(f"Cannot load order network: {e}")
+                on_nodes, on_edges = [], []
+        else:
+            on_nodes = st.session_state.viz_order_net_nodes
+            on_edges = st.session_state.viz_order_net_edges
+
+        onh_ctrl, onh_btn = st.columns([5, 1])
+        with onh_btn:
+            if st.button("🔄 Refresh", key="on_refresh", use_container_width=True):
+                st.session_state.viz_order_net_nodes = None
+                st.session_state.viz_order_net_edges = None
+                st.rerun()
+
+        if not on_nodes:
+            st.info(
+                "No order data found. Ensure the database is seeded "
+                "(`python seed.py`) and at least one order exists."
+            )
+        else:
+            with onh_ctrl:
+                on_physics = st.checkbox(
+                    "Physics (drag to rearrange, uncheck to freeze)",
+                    value=True, key="on_physics"
+                )
+
+            order_dots = sum(1 for n in on_nodes if n.get("shape") == "dot")
+            hub_hexes  = len(on_nodes) - order_dots
+            st.caption(
+                f"{len(on_nodes)} nodes ({order_dots} order{'s' if order_dots != 1 else ''} "
+                f"· {hub_hexes} attribute hubs) · {len(on_edges)} edges"
+            )
+
+            html_on = build_pyvis_html(
+                on_nodes, on_edges,
+                height=660,
+                physics=on_physics,
+                show_edge_labels=show_edge_lbl,
+            )
+            st.iframe(html_on, height=670)
+            st.markdown(render_order_network_legend(), unsafe_allow_html=True)

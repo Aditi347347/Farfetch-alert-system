@@ -4,12 +4,15 @@ graph_viz.py — Interactive graph visualization helpers.
 Builds force-directed vis.js graphs via pyvis and returns HTML strings
 that Streamlit renders inside iframes via st.iframe().
 
-Four graph types:
+Five graph types:
   - Regulatory Framework  : Regulation → Article → Obligation → Penalty
   - Product Journey       : Order + all supply-chain nodes (PRE-agent, no Findings)
   - SKU Subgraph          : SKU → RawMaterials → Countries, LaborLaws, Certifications
   - Context / RCA         : ComplianceRun → Findings → Checkpoint + Obligation +
                             DataAnomaly → RCA → Fine
+  - Order Network         : ALL orders as dot nodes wired through shared attribute hubs
+                            (Destination · SellerCountry · Category · Material ·
+                             Obligation · Result · Stage · Agent · ValueTier · FineStatus)
 """
 from __future__ import annotations
 import json
@@ -44,6 +47,20 @@ NODE_VIZ: dict[str, dict] = {
     "HubDomain":           {"color": "#7B1FA2", "border": "#4A0072", "shape": "hexagon",   "size": 36},
     "HubStage":            {"color": "#1565C0", "border": "#0D47A1", "shape": "hexagon",   "size": 30},
     "HubMaterial":         {"color": "#E65100", "border": "#BF360C", "shape": "hexagon",   "size": 28},
+    # ── Order Dataset Network hub nodes ──────────────────────────────────────
+    # Synthetic hub nodes for the all-orders network view.  Orders sharing a
+    # hub node are related through that attribute (e.g. same raw material,
+    # same destination, same violated obligation, etc.).
+    "OrdHubDestination":   {"color": "#006064", "border": "#003B3F", "shape": "hexagon", "size": 46},
+    "OrdHubSellerCountry": {"color": "#B71C1C", "border": "#7F0000", "shape": "hexagon", "size": 40},
+    "OrdHubCategory":      {"color": "#E65100", "border": "#BF360C", "shape": "hexagon", "size": 40},
+    "OrdHubMaterial":      {"color": "#F57F17", "border": "#BC5100", "shape": "hexagon", "size": 36},
+    "OrdHubObligation":    {"color": "#4A148C", "border": "#29006C", "shape": "hexagon", "size": 42},
+    "OrdHubResult":        {"color": "#0D47A1", "border": "#082866", "shape": "hexagon", "size": 46},
+    "OrdHubStage":         {"color": "#004D40", "border": "#002B22", "shape": "hexagon", "size": 36},
+    "OrdHubAgent":         {"color": "#1B5E20", "border": "#0A3D0A", "shape": "hexagon", "size": 32},
+    "OrdHubValueTier":     {"color": "#827717", "border": "#524A00", "shape": "hexagon", "size": 32},
+    "OrdHubFineStatus":    {"color": "#880E4F", "border": "#560027", "shape": "hexagon", "size": 34},
     # ── Compliance execution nodes ────────────────────────────────────────────
     "Predicate":           {"color": "#7F8C8D", "border": "#5D6D7E", "shape": "ellipse",   "size": 15},
     "EventPattern":        {"color": "#AAB7B8", "border": "#7F8C8D", "shape": "ellipse",   "size": 13},
@@ -98,6 +115,17 @@ EDGE_COLORS: dict[str, str] = {
     "HAD_COMPLIANCE_RUN":   "#5B9BD5",
     "RAISED_FINDING":       "#FF4500",
     "NEXT_STAGE":           "#20B2AA",
+    # Order Dataset Network
+    "DEST_COUNTRY":         "#006064",
+    "SELLER_COUNTRY":       "#B71C1C",
+    "PROD_CATEGORY":        "#E65100",
+    "USES_MATERIAL":        "#F57F17",
+    "VIOLATES_OBL":         "#4A148C",
+    "HAS_RESULT":           "#0D47A1",
+    "CAUGHT_AT_STAGE":      "#004D40",
+    "FLAGGED_BY":           "#1B5E20",
+    "VALUE_TIER":           "#827717",
+    "FINE_STATUS":          "#880E4F",
 }
 
 # ── Physics / vis.js options ───────────────────────────────────────────────────
@@ -767,6 +795,209 @@ def build_context_subgraph(tx, oid: str) -> tuple[list, list]:
     return list(node_map.values()), edges
 
 
+# ── Order result colour map (used by build_order_network + legend) ────────────
+ORDER_RESULT_COLORS: dict[str, str] = {
+    "PASS":       "#1E8449",
+    "FLAGGED":    "#1A5276",
+    "VIOLATED":   "#D35400",
+    "FINED":      "#C0392B",
+    "UNANALYZED": "#555555",
+}
+
+# ── Hub type label display names (used in hub node labels) ────────────────────
+_ORD_HUB_TYPE_LABELS: dict[str, str] = {
+    "OrdHubDestination":   "DESTINATION",
+    "OrdHubSellerCountry": "SELLER CTRY",
+    "OrdHubCategory":      "CATEGORY",
+    "OrdHubMaterial":      "MATERIAL",
+    "OrdHubObligation":    "OBLIGATION",
+    "OrdHubResult":        "RESULT",
+    "OrdHubStage":         "STAGE",
+    "OrdHubAgent":         "AGENT",
+    "OrdHubValueTier":     "VALUE TIER",
+    "OrdHubFineStatus":    "FINE STATUS",
+}
+
+
+def build_order_network(tx) -> tuple[list, list]:
+    """
+    Order Dataset Network — hub-and-spoke view of ALL orders in the database.
+
+    Every order is drawn as a small dot node (coloured by compliance result).
+    Orders sharing an attribute are connected through a common hexagon hub node:
+
+      OrdHubDestination   — shipment destination region (US, EU, …)
+      OrdHubSellerCountry — seller's home country
+      OrdHubCategory      — SKU product category (Bags, Shoes, …)
+      OrdHubMaterial      — raw material (Full-Grain Leather, …)
+      OrdHubObligation    — violated obligation (EU_CRD_Art9, UCC_DECL, …)
+      OrdHubResult        — compliance result (PASS / FLAGGED / VIOLATED / FINED)
+      OrdHubStage         — compliance checkpoint / detection stage
+      OrdHubAgent         — compliance agent that raised a finding
+      OrdHubValueTier     — order value bracket (Low / Medium / High)
+      OrdHubFineStatus    — fine payment status (PENDING / PAID / DISPUTED)
+
+    Orders that share a hub node are related through that attribute, making it
+    easy to spot clusters (e.g. all orders with late customs declarations, all
+    Leather Goods orders, all High-value fined orders, etc.).
+    """
+    rows = tx.run("""
+        MATCH (ord:Order)
+        OPTIONAL MATCH (ord)-[:SOLD_BY]->(sel:Seller)
+        OPTIONAL MATCH (ord)-[:ALLOCATED_TO]->(ship:Shipment)
+        OPTIONAL MATCH (ord)-[:HAS_SKU]->(sku:SKU)
+        OPTIONAL MATCH (ord)-[:HAD_COMPLIANCE_RUN]->(cr:ComplianceRun)
+        OPTIONAL MATCH (cr)-[:ESCALATED_TO]->(fine:Fine)
+        OPTIONAL MATCH (cr)-[:HAS_RCA]->(rca:RCA)
+        WITH ord, sel, ship, sku, cr, fine, rca
+        OPTIONAL MATCH (sku)-[:USES]->(rm:RawMaterial)
+        WITH ord, sel, ship, sku, cr, fine, rca,
+             collect(distinct rm.name) AS raw_materials
+        OPTIONAL MATCH (cr)-[:RAISED_FINDING]->(fn:Finding)
+        OPTIONAL MATCH (fn)-[:VIOLATES]->(obl:Obligation)
+        OPTIONAL MATCH (fn)-[:CAUGHT_AT]->(cp:Checkpoint)
+        RETURN
+          ord.order_id                 AS order_id,
+          ord.total_value              AS total_value,
+          ord.currency                 AS currency,
+          sel.country                  AS seller_country,
+          ship.destination             AS destination,
+          sku.category                 AS sku_category,
+          raw_materials,
+          cr.result                    AS result,
+          collect(distinct fn.agent)   AS agents,
+          collect(distinct cp.stage)   AS cp_stages,
+          collect(distinct obl.obl_id) AS violated_obls,
+          fine.status                  AS fine_status,
+          rca.detection_stage          AS detection_stage
+    """).data()
+
+    node_map: dict[str, dict] = {}
+    edges:    list[dict]      = []
+    edge_set: set[tuple]      = set()   # deduplicates (from, to, rel) triples
+
+    # ── Hub node builder ──────────────────────────────────────────────────────
+    def _hub(hub_type: str, value: str):
+        if not value:
+            return None
+        nid = f"OrdHub__{hub_type}__{value}"
+        if nid not in node_map:
+            st_cfg     = _node_style(hub_type)
+            type_label = _ORD_HUB_TYPE_LABELS.get(hub_type,
+                             hub_type.replace("OrdHub", "").upper())
+            node_map[nid] = {
+                "id":           nid,
+                "label":        f"{value}\n{type_label}",
+                "title":        f"[ {type_label} HUB ]\n  {value}",
+                "color":        st_cfg["color"],
+                "border_color": st_cfg["border"],
+                "size":         st_cfg["size"],
+                "shape":        st_cfg["shape"],
+            }
+        return nid
+
+    # ── Deduplicated edge adder ───────────────────────────────────────────────
+    def _edge(s, t, rel, w=1.4):
+        if not s or not t:
+            return
+        key = (s, t, rel)
+        if key not in edge_set:
+            edge_set.add(key)
+            edges.append({
+                "from":  s,
+                "to":    t,
+                "label": rel,
+                "color": EDGE_COLORS.get(rel, "#848484"),
+                "width": w,
+            })
+
+    for row in rows:
+        oid = row.get("order_id") or ""
+        if not oid:
+            continue
+
+        total_val  = row.get("total_value")     or 0
+        currency   = row.get("currency")        or "EUR"
+        result     = row.get("result")          or "UNANALYZED"
+        dest       = row.get("destination")     or ""
+        seller_co  = row.get("seller_country")  or ""
+        sku_cat    = row.get("sku_category")    or ""
+        raw_mats   = [m for m in (row.get("raw_materials") or []) if m]
+        agents_lst = [a for a in (row.get("agents")        or []) if a]
+        cp_stages  = [s for s in (row.get("cp_stages")     or []) if s]
+        violated   = [o for o in (row.get("violated_obls") or []) if o]
+        fine_st    = row.get("fine_status")     or ""
+        det_stage  = row.get("detection_stage") or ""
+
+        # ── Order dot node (coloured by compliance result) ────────────────────
+        ord_color = ORDER_RESULT_COLORS.get(result, "#555555")
+        val_str   = f"€{total_val:,.0f}" if total_val else "—"
+        ord_nid   = f"Order__{oid}"
+        if ord_nid not in node_map:
+            node_map[ord_nid] = {
+                "id":           ord_nid,
+                "label":        oid,
+                "title":        (f"[ ORDER ]\n  ID: {oid}\n"
+                                 f"  Value: {val_str} {currency}\n"
+                                 f"  Result: {result}\n"
+                                 f"  Category: {sku_cat or '—'}\n"
+                                 f"  Destination: {dest or '—'}\n"
+                                 f"  Fine status: {fine_st or '—'}"),
+                "color":        ord_color,
+                "border_color": "#000000",
+                "size":         14,
+                "shape":        "dot",
+            }
+
+        # ── Value tier hub ────────────────────────────────────────────────────
+        if total_val is not None:
+            if   total_val <  5_000:  tier = "Low  (<€5k)"
+            elif total_val <= 15_000: tier = "Medium  (€5k–€15k)"
+            else:                     tier = "High  (>€15k)"
+            _edge(ord_nid, _hub("OrdHubValueTier", tier),            "VALUE_TIER",      1.2)
+
+        # ── Destination hub ───────────────────────────────────────────────────
+        if dest:
+            _edge(ord_nid, _hub("OrdHubDestination", dest),          "DEST_COUNTRY",    1.4)
+
+        # ── Seller country hub ────────────────────────────────────────────────
+        if seller_co:
+            _edge(ord_nid, _hub("OrdHubSellerCountry", seller_co),   "SELLER_COUNTRY",  1.4)
+
+        # ── SKU category hub ──────────────────────────────────────────────────
+        if sku_cat:
+            _edge(ord_nid, _hub("OrdHubCategory", sku_cat),          "PROD_CATEGORY",   1.4)
+
+        # ── Raw material hubs ─────────────────────────────────────────────────
+        for mat in raw_mats:
+            _edge(ord_nid, _hub("OrdHubMaterial", mat),              "USES_MATERIAL",   1.2)
+
+        # ── Compliance result hub ─────────────────────────────────────────────
+        if result and result != "UNANALYZED":
+            _edge(ord_nid, _hub("OrdHubResult", result),             "HAS_RESULT",      1.6)
+
+        # ── Violated obligation hubs ──────────────────────────────────────────
+        for obl_id in violated:
+            _edge(ord_nid, _hub("OrdHubObligation", obl_id),        "VIOLATES_OBL",    1.6)
+
+        # ── Checkpoint + RCA detection stage hubs ─────────────────────────────
+        all_stages = list(dict.fromkeys(
+            cp_stages + ([det_stage] if det_stage and det_stage not in cp_stages else [])
+        ))
+        for stage in all_stages:
+            _edge(ord_nid, _hub("OrdHubStage", stage),               "CAUGHT_AT_STAGE", 1.4)
+
+        # ── Compliance agent hubs ─────────────────────────────────────────────
+        for agent in agents_lst:
+            _edge(ord_nid, _hub("OrdHubAgent", agent),               "FLAGGED_BY",      1.4)
+
+        # ── Fine status hub ───────────────────────────────────────────────────
+        if fine_st:
+            _edge(ord_nid, _hub("OrdHubFineStatus", fine_st),       "FINE_STATUS",     1.4)
+
+    return list(node_map.values()), edges
+
+
 # ── Legend data (for rendering in Streamlit) ──────────────────────────────────
 
 JOURNEY_LEGEND = [
@@ -813,6 +1044,19 @@ CONTEXT_LEGEND = [
     ("Fine",          "triangle"),
 ]
 
+ORDER_NETWORK_LEGEND = [
+    ("OrdHubDestination",   "hexagon"),
+    ("OrdHubSellerCountry", "hexagon"),
+    ("OrdHubCategory",      "hexagon"),
+    ("OrdHubMaterial",      "hexagon"),
+    ("OrdHubObligation",    "hexagon"),
+    ("OrdHubResult",        "hexagon"),
+    ("OrdHubStage",         "hexagon"),
+    ("OrdHubAgent",         "hexagon"),
+    ("OrdHubValueTier",     "hexagon"),
+    ("OrdHubFineStatus",    "hexagon"),
+]
+
 
 def render_legend(items: list[tuple[str, str]]) -> str:
     """Return an EXL-styled HTML legend strip for the node types in this graph."""
@@ -833,5 +1077,68 @@ def render_legend(items: list[tuple[str, str]]) -> str:
             f'letter-spacing:1px;text-transform:uppercase">{label}</span>'
             f'</div>'
         )
+    html += '</div>'
+    return html
+
+
+def render_order_network_legend() -> str:
+    """
+    Two-section legend for the Order Dataset Network tab.
+
+    Section 1 — order dot colours by compliance result.
+    Section 2 — hub hexagon colours by hub type.
+    """
+    result_items = [
+        ("UNANALYZED", ORDER_RESULT_COLORS["UNANALYZED"]),
+        ("PASS",       ORDER_RESULT_COLORS["PASS"]),
+        ("FLAGGED",    ORDER_RESULT_COLORS["FLAGGED"]),
+        ("VIOLATED",   ORDER_RESULT_COLORS["VIOLATED"]),
+        ("FINED",      ORDER_RESULT_COLORS["FINED"]),
+    ]
+
+    html = (
+        '<div style="display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 0 0;'
+        'padding:8px 12px;background:#2C2117;'
+        'border:1px solid #3d3020;border-top:1px solid #C9A84C">'
+    )
+
+    # ── Section header: Order result dot colours ──────────────────────────────
+    html += (
+        '<div style="width:100%;font-size:9px;color:#C9A84C;font-weight:700;'
+        'letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">'
+        '▪ Order Node (dot) — by compliance result</div>'
+    )
+    for label, color in result_items:
+        html += (
+            f'<div style="display:flex;align-items:center;gap:5px;'
+            f'padding:2px 8px;background:#18140F;border:1px solid #3d3020">'
+            f'<div style="width:10px;height:10px;border-radius:50%;background:{color};'
+            f'flex-shrink:0"></div>'
+            f'<span style="font-size:9px;color:#7a6a50;font-weight:600;'
+            f'letter-spacing:1px;text-transform:uppercase">{label}</span>'
+            f'</div>'
+        )
+
+    # ── Section header: Hub hexagon colours ───────────────────────────────────
+    html += (
+        '<div style="width:100%;font-size:9px;color:#C9A84C;font-weight:700;'
+        'letter-spacing:1.5px;text-transform:uppercase;margin:8px 0 4px 0">'
+        '▪ Attribute Hub (hexagon) — orders sharing a hub share that attribute</div>'
+    )
+    for label, _ in ORDER_NETWORK_LEGEND:
+        st_cfg = NODE_VIZ.get(label, {"color": "#778899"})
+        c      = st_cfg["color"]
+        short  = _ORD_HUB_TYPE_LABELS.get(label, label.replace("OrdHub", ""))
+        html += (
+            f'<div style="display:flex;align-items:center;gap:5px;'
+            f'padding:2px 8px;background:#18140F;border:1px solid #3d3020">'
+            f'<div style="width:10px;height:10px;background:{c};'
+            f'clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);'
+            f'flex-shrink:0"></div>'
+            f'<span style="font-size:9px;color:#7a6a50;font-weight:600;'
+            f'letter-spacing:1px;text-transform:uppercase">{short}</span>'
+            f'</div>'
+        )
+
     html += '</div>'
     return html
