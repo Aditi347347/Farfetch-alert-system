@@ -2,12 +2,14 @@
 graph_viz.py — Interactive graph visualization helpers.
 
 Builds force-directed vis.js graphs via pyvis and returns HTML strings
-that Streamlit renders inside iframes via st.components.v1.html().
+that Streamlit renders inside iframes via st.iframe().
 
-Three graph types:
+Four graph types:
   - Regulatory Framework  : Regulation → Article → Obligation → Penalty
-  - Product Journey       : Order + all linked transaction nodes + Findings
+  - Product Journey       : Order + all supply-chain nodes (PRE-agent, no Findings)
   - SKU Subgraph          : SKU → RawMaterials → Countries, LaborLaws, Certifications
+  - Context / RCA         : ComplianceRun → Findings → Checkpoint + Obligation +
+                            DataAnomaly → RCA → Fine
 """
 from __future__ import annotations
 import json
@@ -317,7 +319,15 @@ def build_regulatory_graph(tx) -> tuple[list, list]:
 
 
 def build_journey_graph(tx, oid: str) -> tuple[list, list]:
-    """Product Journey: Order + all transaction nodes + Findings for one order."""
+    """
+    Product Journey — pure supply-chain view BEFORE agent analysis.
+
+    Shows: Order → Consumer · Seller · Shipment → Customs · Packaging ·
+           Delivery · SKU · Invoice → Payment · GoodsReceipt · ReturnRequest
+
+    Findings are intentionally excluded: this graph represents the raw
+    order data that feeds the agents, not their output.
+    """
     rec = tx.run("""
         MATCH (ord:Order {order_id: $oid})
         OPTIONAL MATCH (ord)-[:PLACED_BY]->(c:Consumer)
@@ -325,7 +335,6 @@ def build_journey_graph(tx, oid: str) -> tuple[list, list]:
         OPTIONAL MATCH (ord)-[:ALLOCATED_TO]->(ship:Shipment)
         OPTIONAL MATCH (ship)-[:CLEARED_BY]->(cd:CustomsDeclaration)
         OPTIONAL MATCH (ship)-[:PACKAGED_AS]->(pk:Packaging)
-        OPTIONAL MATCH (ship)-[:DELIVERED_TO]->(c_del:Consumer)
         OPTIONAL MATCH (ord)-[:HAS_SKU]->(sku:SKU)
         OPTIONAL MATCH (ord)-[:HAS_INVOICE]->(inv:Invoice)
         OPTIONAL MATCH (inv)-[:PAID_BY]->(pay:PaymentEvent)
@@ -342,7 +351,7 @@ def build_journey_graph(tx, oid: str) -> tuple[list, list]:
     node_map: dict[str, dict] = {}
     edges: list[dict] = []
 
-    def _add(label, raw, override_color=None):
+    def _add(label, raw):
         if raw is None:
             return None
         p   = _props(raw)
@@ -353,7 +362,7 @@ def build_journey_graph(tx, oid: str) -> tuple[list, list]:
                 "id":           nid,
                 "label":        _short_label(label, p),
                 "title":        _tooltip(label, p),
-                "color":        override_color or st["color"],
+                "color":        st["color"],
                 "border_color": st["border"],
                 "size":         st["size"],
                 "shape":        st["shape"],
@@ -377,41 +386,17 @@ def build_journey_graph(tx, oid: str) -> tuple[list, list]:
     gr_id   = _add("GoodsReceipt",       rec["gr"])
     ret_id  = _add("ReturnRequest",      rec["ret_node"])
 
-    _edge(ord_id, c_id,    "PLACED_BY")
-    _edge(ord_id, sell_id, "SOLD_BY")
-    _edge(ord_id, ship_id, "ALLOCATED_TO")
-    _edge(ord_id, sku_id,  "HAS_SKU")
-    _edge(ord_id, inv_id,  "HAS_INVOICE")
-    _edge(ship_id, cd_id,  "CLEARED_BY")
-    _edge(ship_id, pk_id,  "PACKAGED_AS")
-    _edge(ship_id, c_id,   "DELIVERED_TO")
-    _edge(inv_id,  pay_id, "PAID_BY")
-    _edge(gr_id,   ord_id, "LINKED_TO")
-    _edge(c_id,    ret_id, "INITIATED")
-
-    # Findings — colour by severity
-    SEV_COL = {"critical": "#c0392b", "high": "#e67e22", "medium": "#d4a017"}
-    fn_rows = tx.run("""
-        MATCH (f:Finding) WHERE f.order_id = $oid RETURN f
-    """, oid=oid).data()
-    for row in fn_rows:
-        fn = row.get("f")
-        if fn:
-            p   = _props(fn)
-            fid = f"Finding__{p.get('finding_id','?')}"
-            sev = p.get("severity", "")
-            col = SEV_COL.get(sev, "#FF4500")
-            if fid not in node_map:
-                node_map[fid] = {
-                    "id":           fid,
-                    "label":        f"Finding\n{p.get('finding_id','?')}",
-                    "title":        _tooltip("Finding", p),
-                    "color":        col,
-                    "border_color": "#8B0000",
-                    "size":         26,
-                    "shape":        "triangle",
-                }
-            _edge(fid, ord_id, "AFFECTS")
+    _edge(ord_id,  c_id,    "PLACED_BY")
+    _edge(ord_id,  sell_id, "SOLD_BY")
+    _edge(ord_id,  ship_id, "ALLOCATED_TO")
+    _edge(ord_id,  sku_id,  "HAS_SKU")
+    _edge(ord_id,  inv_id,  "HAS_INVOICE")
+    _edge(ship_id, cd_id,   "CLEARED_BY")
+    _edge(ship_id, pk_id,   "PACKAGED_AS")
+    _edge(ship_id, c_id,    "DELIVERED_TO")
+    _edge(inv_id,  pay_id,  "PAID_BY")
+    _edge(gr_id,   ord_id,  "LINKED_TO")
+    _edge(c_id,    ret_id,  "INITIATED")
 
     return list(node_map.values()), edges
 
@@ -500,8 +485,17 @@ def build_sku_graph(tx, oid: str) -> tuple[list, list]:
 
 def build_context_subgraph(tx, oid: str) -> tuple[list, list]:
     """
-    Context subgraph for a fined order:
-    ComplianceRun → Finding → RCA → Fine, with Checkpoint nodes.
+    Full compliance context for a processed order (agent output view).
+
+    Structure:
+      Order → ComplianceRun → Finding(s) → Checkpoint  (where caught)
+                                          → Obligation  (what was violated)
+                                          → DataAnomaly (evidence)
+                           → RCA          (root cause analysis)
+                           → Fine         (regulatory penalty)
+
+    This is the POST-agent graph — everything the agents discovered and
+    how it links to the regulatory framework.
     """
     node_map: dict[str, dict] = {}
     edges: list[dict] = []
@@ -529,13 +523,13 @@ def build_context_subgraph(tx, oid: str) -> tuple[list, list]:
             edges.append({"from": s, "to": t, "label": rel,
                            "color": EDGE_COLORS.get(rel, "#848484"), "width": w})
 
-    # Order node
+    # ── Order ────────────────────────────────────────────────────────────────────
     ord_rec = tx.run("MATCH (o:Order {order_id:$oid}) RETURN o", oid=oid).single()
     if not ord_rec:
         return [], []
     ord_id = _add("Order", ord_rec["o"])
 
-    # ComplianceRun
+    # ── ComplianceRun ─────────────────────────────────────────────────────────────
     cr_rec = tx.run("""
         MATCH (o:Order {order_id:$oid})-[:HAD_COMPLIANCE_RUN]->(cr:ComplianceRun)
         RETURN cr
@@ -543,30 +537,51 @@ def build_context_subgraph(tx, oid: str) -> tuple[list, list]:
     cr_id = None
     if cr_rec:
         cr_id = _add("ComplianceRun", cr_rec["cr"])
-        _edge(ord_id, cr_id, "HAD_COMPLIANCE_RUN")
+        _edge(ord_id, cr_id, "HAD_COMPLIANCE_RUN", 2.4)
 
-    # Findings + Checkpoints
+    # ── Findings + Checkpoints + Obligations + DataAnomalies ─────────────────────
     fn_rows = tx.run("""
         MATCH (o:Order {order_id:$oid})-[:HAD_COMPLIANCE_RUN]->(cr:ComplianceRun)
               -[:RAISED_FINDING]->(fn:Finding)
         OPTIONAL MATCH (fn)-[:CAUGHT_AT]->(cp:Checkpoint)
-        RETURN fn, cp
+        OPTIONAL MATCH (fn)-[:VIOLATES]->(obl:Obligation)
+        OPTIONAL MATCH (fn)-[:HAS_ANOMALY]->(anom:DataAnomaly)
+        RETURN fn, cp, obl, anom
     """, oid=oid).data()
+
     SEV_COL = {"critical": "#c0392b", "high": "#e67e22", "medium": "#d4a017"}
     for row in fn_rows:
-        fn = row.get("fn")
-        cp = row.get("cp")
-        if fn:
-            p   = _props(fn)
-            sev = p.get("severity", "")
-            fid = _add("Finding", fn, override_color=SEV_COL.get(sev, "#FF4500"))
-            if cr_id:
-                _edge(cr_id, fid, "RAISED_FINDING")
-            if cp:
-                cp_id = _add("Checkpoint", cp)
-                _edge(fid, cp_id, "CAUGHT_AT")
+        fn   = row.get("fn")
+        cp   = row.get("cp")
+        obl  = row.get("obl")
+        anom = row.get("anom")
 
-    # RCA
+        if not fn:
+            continue
+
+        p   = _props(fn)
+        sev = p.get("severity", "")
+        fid = _add("Finding", fn, override_color=SEV_COL.get(sev, "#FF4500"))
+
+        if cr_id:
+            _edge(cr_id, fid, "RAISED_FINDING", 1.8)
+
+        # Where was it caught?
+        if cp:
+            cp_id = _add("Checkpoint", cp)
+            _edge(fid, cp_id, "CAUGHT_AT", 2.0)
+
+        # What obligation did it violate?
+        if obl:
+            obl_id = _add("Obligation", obl)
+            _edge(fid, obl_id, "VIOLATES", 2.0)
+
+        # What data anomaly was the evidence?
+        if anom:
+            anom_id = _add("DataAnomaly", anom)
+            _edge(fid, anom_id, "HAS_ANOMALY", 1.4)
+
+    # ── RCA ───────────────────────────────────────────────────────────────────────
     rca_rec = tx.run("""
         MATCH (o:Order {order_id:$oid})-[:HAD_COMPLIANCE_RUN]->(cr:ComplianceRun)
               -[:HAS_RCA]->(rca:RCA)
@@ -576,20 +591,25 @@ def build_context_subgraph(tx, oid: str) -> tuple[list, list]:
     if rca_rec:
         rca_id = _add("RCA", rca_rec["rca"])
         if cr_id:
-            _edge(cr_id, rca_id, "HAS_RCA", 2.0)
+            _edge(cr_id, rca_id, "HAS_RCA", 2.2)
 
-    # Fine
+    # ── Fine ──────────────────────────────────────────────────────────────────────
     fine_rec = tx.run("""
         MATCH (o:Order {order_id:$oid})-[:HAD_COMPLIANCE_RUN]->(cr:ComplianceRun)
               -[:ESCALATED_TO]->(fine:Fine)
-        RETURN fine
+        OPTIONAL MATCH (fine)-[:UNDER_REGULATION]->(fine_obl:Obligation)
+        RETURN fine, fine_obl
     """, oid=oid).single()
-    if fine_rec:
+    if fine_rec and fine_rec.get("fine"):
         fine_id = _add("Fine", fine_rec["fine"])
         if cr_id:
-            _edge(cr_id, fine_id, "ESCALATED_TO", 2.2)
+            _edge(cr_id, fine_id, "ESCALATED_TO", 2.4)
         if rca_id:
-            _edge(fine_id, rca_id, "BASED_ON_RCA", 1.6)
+            _edge(rca_id, fine_id, "BASED_ON_RCA", 1.8)
+        # Fine → its triggering Obligation
+        if fine_rec.get("fine_obl"):
+            fobl_id = _add("Obligation", fine_rec["fine_obl"])
+            _edge(fine_id, fobl_id, "UNDER_REGULATION", 1.6)
 
     return list(node_map.values()), edges
 
@@ -608,7 +628,6 @@ JOURNEY_LEGEND = [
     ("GoodsReceipt",       "ellipse"),
     ("ReturnRequest",      "triangle"),
     ("SKU",                "star"),
-    ("Finding",            "triangle"),
 ]
 
 REGULATORY_LEGEND = [
@@ -631,6 +650,8 @@ CONTEXT_LEGEND = [
     ("ComplianceRun", "ellipse"),
     ("Finding",       "triangle"),
     ("Checkpoint",    "hexagon"),
+    ("Obligation",    "diamond"),
+    ("DataAnomaly",   "ellipse"),
     ("RCA",           "diamond"),
     ("Fine",          "triangle"),
 ]

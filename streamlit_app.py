@@ -1463,8 +1463,9 @@ with tab_viz:
     with vt2:
         st.markdown(
             f"**Product Journey** for `{current_viz_oid}` — "
-            "Order &rarr; Consumer / Seller / Shipment / Customs / Packaging / "
-            "Invoice / Payment / GoodsReceipt / ReturnRequest / SKU + Findings"
+            "raw supply-chain view before agent analysis: "
+            "Order &rarr; Consumer · Seller · Shipment &rarr; Customs · Packaging · "
+            "Invoice &rarr; Payment · GoodsReceipt · ReturnRequest · SKU"
         )
 
         try:
@@ -1483,7 +1484,7 @@ with tab_viz:
                 "Type an order ID above and click **Load Graph**."
             )
         else:
-            jh1, jh2, jh3 = st.columns([3, 2, 2])
+            jh1, jh2 = st.columns([3, 2])
             with jh1:
                 j_physics = st.checkbox(
                     "Physics (drag to rearrange)",
@@ -1491,12 +1492,6 @@ with tab_viz:
                 )
             with jh2:
                 st.caption(f"{len(j_nodes)} nodes · {len(j_edges)} edges")
-            with jh3:
-                fn_count = sum(1 for n in j_nodes if "Finding" in n["id"])
-                if fn_count:
-                    st.caption(
-                        f"⚠️ {fn_count} Finding(s) shown as triangles"
-                    )
 
             html_j = build_pyvis_html(
                 j_nodes, j_edges,
@@ -1551,8 +1546,10 @@ with tab_viz:
     # ── CONTEXT / RCA ─────────────────────────────────────────────────────────
     with vt4:
         st.markdown(
-            f"**Context Graph** for `{current_viz_oid}` — "
-            "ComplianceRun &rarr; Findings &rarr; Checkpoints + RCA + Fine"
+            f"**Context / RCA Graph** for `{current_viz_oid}` — "
+            "agent output view: ComplianceRun &rarr; Findings &rarr; "
+            "Checkpoint (caught at) · Obligation (violated) · DataAnomaly (evidence) "
+            "&rarr; RCA &rarr; Fine"
         )
 
         try:
