@@ -15,8 +15,9 @@ from __future__ import annotations
 import json
 from neo4j.time import Date, DateTime
 
-# ── Node visual styles (Neo4j-inspired palette) ────────────────────────────────
+# ── Node visual styles ─────────────────────────────────────────────────────────
 NODE_VIZ: dict[str, dict] = {
+    # ── Supply-chain / order nodes ─────────────────────────────────────────────
     "Order":               {"color": "#4A90D9", "border": "#1A5FAA", "shape": "diamond",   "size": 38},
     "Consumer":            {"color": "#E67E22", "border": "#A84E10", "shape": "ellipse",   "size": 26},
     "Seller":              {"color": "#E74C3C", "border": "#9B2C2C", "shape": "ellipse",   "size": 26},
@@ -32,12 +33,20 @@ NODE_VIZ: dict[str, dict] = {
     "Country":             {"color": "#229954", "border": "#145A32", "shape": "ellipse",   "size": 20},
     "LaborLaw":            {"color": "#7D3C98", "border": "#4A235A", "shape": "ellipse",   "size": 20},
     "Certification":       {"color": "#17A589", "border": "#0E6655", "shape": "ellipse",   "size": 20},
-    "Regulation":          {"color": "#C0392B", "border": "#7B241C", "shape": "star",      "size": 40},
-    "Article":             {"color": "#E67E22", "border": "#A84E10", "shape": "box",       "size": 26},
-    "Obligation":          {"color": "#2471A3", "border": "#154360", "shape": "diamond",   "size": 30},
+    # ── Regulatory framework nodes ─────────────────────────────────────────────
+    "Regulation":          {"color": "#C0392B", "border": "#7B241C", "shape": "star",      "size": 42},
+    "Article":             {"color": "#E67E22", "border": "#A84E10", "shape": "box",       "size": 24},
+    "Obligation":          {"color": "#2471A3", "border": "#154360", "shape": "diamond",   "size": 28},
+    "Penalty":             {"color": "#922B21", "border": "#641E16", "shape": "triangle",  "size": 22},
+    # ── Regulation network hub nodes ──────────────────────────────────────────
+    # These are synthetic category nodes; regulations sharing a hub are networked.
+    "HubJurisdiction":     {"color": "#00897B", "border": "#004D40", "shape": "hexagon",   "size": 44},
+    "HubDomain":           {"color": "#7B1FA2", "border": "#4A0072", "shape": "hexagon",   "size": 36},
+    "HubStage":            {"color": "#1565C0", "border": "#0D47A1", "shape": "hexagon",   "size": 30},
+    "HubMaterial":         {"color": "#E65100", "border": "#BF360C", "shape": "hexagon",   "size": 28},
+    # ── Compliance execution nodes ────────────────────────────────────────────
     "Predicate":           {"color": "#7F8C8D", "border": "#5D6D7E", "shape": "ellipse",   "size": 15},
     "EventPattern":        {"color": "#AAB7B8", "border": "#7F8C8D", "shape": "ellipse",   "size": 13},
-    "Penalty":             {"color": "#B03A2E", "border": "#78281F", "shape": "triangle",  "size": 28},
     "Finding":             {"color": "#FF4500", "border": "#8B2200", "shape": "triangle",  "size": 28},
     "ComplianceRun":       {"color": "#5B9BD5", "border": "#2E75B6", "shape": "ellipse",   "size": 24},
     "Checkpoint":          {"color": "#20B2AA", "border": "#0E8080", "shape": "hexagon",   "size": 24},
@@ -48,9 +57,16 @@ NODE_VIZ: dict[str, dict] = {
 
 # ── Edge colour map ────────────────────────────────────────────────────────────
 EDGE_COLORS: dict[str, str] = {
+    # Regulatory chain
     "HAS_ARTICLE":          "#E67E22",
     "IMPOSES":              "#E74C3C",
-    "VIOLATION_TRIGGERS":   "#B03A2E",
+    "VIOLATION_TRIGGERS":   "#922B21",
+    # Regulation → hub connections
+    "APPLIES_IN":           "#00897B",   # teal  — jurisdiction
+    "FALLS_UNDER":          "#7B1FA2",   # purple — domain
+    "TRIGGERS_AT":          "#1565C0",   # blue   — stage
+    "COVERS_MATERIAL":      "#E65100",   # deep orange — material
+    # Supply-chain
     "EVALUATED_BY":         "#7F8C8D",
     "APPLIES_TO":           "#AAB7B8",
     "PLACED_BY":            "#4A90D9",
@@ -70,6 +86,7 @@ EDGE_COLORS: dict[str, str] = {
     "MANUFACTURED_IN":      "#27AE60",
     "COMPLIES_WITH":        "#7D3C98",
     "CERTIFIED_BY":         "#17A589",
+    # Compliance execution
     "AFFECTS":              "#FF6B35",
     "VIOLATES":             "#B03A2E",
     "CAUGHT_AT":            "#20B2AA",
@@ -273,18 +290,92 @@ def build_pyvis_html(
 #  GRAPH DATA BUILDERS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# ── Category hub metadata (synthetic — not stored in Neo4j) ───────────────────
+# Maps each reg_id to the category hubs it belongs to.
+# Regulations sharing a hub are automatically networked together in the graph.
+_REG_CATEGORIES: dict[str, dict] = {
+    "EU_CRD_2011_83": {
+        # EU Consumer Rights Directive — return window, consumer-facing
+        "domains":   ["Consumer Protection"],
+        "stages":    ["RETURN_WINDOW"],
+        "materials": ["Leather Goods", "Textile & Fabric"],
+        # NOTE: Leather / textile goods are most common return-window use-cases
+        # at Farfetch, so CRD connects to the same materials as CS3D
+    },
+    "GDPR_2016_679": {
+        # General Data Protection Regulation — personal data collected at intake
+        "domains":   ["Data Privacy"],
+        "stages":    ["ORDER_INTAKE"],
+        "materials": [],
+    },
+    "SOX_404": {
+        # Sarbanes-Oxley — financial controls, 3-way match
+        "domains":   ["Financial Controls"],
+        "stages":    ["PAYMENT_SETTLEMENT"],
+        "materials": [],
+    },
+    "EU_UCC_2013": {
+        # Union Customs Code — customs declarations at border crossing
+        "domains":   ["Trade & Customs"],
+        "stages":    ["CUSTOMS_GATE", "ORDER_INTAKE"],
+        "materials": ["Cross-Border Goods"],
+    },
+    "EU_CS3D_2024": {
+        # Corporate Sustainability Due Diligence — supply chain, high-risk materials
+        "domains":   ["Environmental", "Labour Rights"],
+        "stages":    ["SKU_SUPPLY_CHAIN"],
+        "materials": ["Leather Goods", "Textile & Fabric"],
+        # Leather (animal hides) and textiles are explicitly high-risk under CS3D
+    },
+    "EU_PPWR_2025": {
+        # Packaging & Packaging Waste Regulation — packaging content targets
+        "domains":   ["Environmental"],
+        "stages":    ["PACKAGING_AUDIT"],
+        "materials": ["Plastics & Synthetics", "Recycled Materials"],
+    },
+}
+
+# ── Hub label display names ────────────────────────────────────────────────────
+_STAGE_DISPLAY: dict[str, str] = {
+    "ORDER_INTAKE":       "Order Intake",
+    "SKU_SUPPLY_CHAIN":   "SKU / Supply Chain",
+    "CUSTOMS_GATE":       "Customs Gate",
+    "PACKAGING_AUDIT":    "Packaging Audit",
+    "PAYMENT_SETTLEMENT": "Payment Settlement",
+    "RETURN_WINDOW":      "Return Window",
+}
+
+
 def build_regulatory_graph(tx) -> tuple[list, list]:
-    """Regulatory Framework: Regulation → Article → Obligation → Penalty."""
+    """
+    Regulatory Network — interconnected hub-and-spoke graph.
+
+    Each Regulation is wired to synthetic category hub nodes:
+      Regulation ──APPLIES_IN──► HubJurisdiction  (from DB property)
+      Regulation ──FALLS_UNDER──► HubDomain        (e.g. Environmental)
+      Regulation ──TRIGGERS_AT──► HubStage         (e.g. Customs Gate)
+      Regulation ──COVERS_MATERIAL──► HubMaterial  (e.g. Leather Goods)
+
+    Regulations sharing a hub are networked through it — e.g.
+    EU CS3D and EU PPWR both connect to the "Environmental" domain hub,
+    and both CS3D and EU CRD connect to the "Leather Goods" material hub.
+
+    The Regulation → Article → Obligation → Penalty chain is preserved
+    so compliance detail is still explorable.
+    """
     rows = tx.run("""
-        MATCH (r:Regulation)-[:HAS_ARTICLE]->(a:Article)-[:IMPOSES]->(o:Obligation)
+        MATCH (r:Regulation)
+        OPTIONAL MATCH (r)-[:HAS_ARTICLE]->(a:Article)-[:IMPOSES]->(o:Obligation)
         OPTIONAL MATCH (o)-[:VIOLATION_TRIGGERS]->(pen:Penalty)
         RETURN r, a, o, pen
+        ORDER BY r.enacted
     """).data()
 
     node_map: dict[str, dict] = {}
     edges: list[dict] = []
 
-    def _add(label, raw, override_color=None):
+    # ── Standard node adder (for DB nodes) ────────────────────────────────────
+    def _add(label, raw):
         if raw is None:
             return None
         p   = _props(raw)
@@ -295,26 +386,78 @@ def build_regulatory_graph(tx) -> tuple[list, list]:
                 "id":           nid,
                 "label":        _short_label(label, p),
                 "title":        _tooltip(label, p),
-                "color":        override_color or st["color"],
+                "color":        st["color"],
                 "border_color": st["border"],
                 "size":         st["size"],
                 "shape":        st["shape"],
             }
         return nid
 
-    def _edge(s, t, rel, w=2.0):
+    # ── Hub node adder (synthetic category nodes) ─────────────────────────────
+    def _hub(hub_type: str, value: str) -> str:
+        nid = f"Hub__{hub_type}__{value}"
+        if nid not in node_map:
+            st           = _node_style(hub_type)
+            display      = _STAGE_DISPLAY.get(value, value)  # pretty-print stage names
+            type_short   = hub_type.replace("Hub", "").upper()  # "JURISDICTION", "DOMAIN" …
+            node_map[nid] = {
+                "id":           nid,
+                "label":        f"{display}\n{type_short}",
+                "title":        f"[ {type_short} HUB ]\n  {display}",
+                "color":        st["color"],
+                "border_color": st["border"],
+                "size":         st["size"],
+                "shape":        st["shape"],
+            }
+        return nid
+
+    def _edge(s, t, rel, w=1.8):
         if s and t:
             edges.append({"from": s, "to": t, "label": rel,
-                           "color": EDGE_COLORS.get(rel, "#848484"), "width": w})
+                          "color": EDGE_COLORS.get(rel, "#848484"), "width": w})
 
+    # ── 1. Regulation → Article → Obligation → Penalty chain (from DB) ────────
+    seen_regs: dict[str, dict] = {}   # reg_id → {nid, props}
     for row in rows:
         r_id   = _add("Regulation", row.get("r"))
         a_id   = _add("Article",    row.get("a"))
         o_id   = _add("Obligation", row.get("o"))
         pen_id = _add("Penalty",    row.get("pen"))
-        _edge(r_id, a_id,   "HAS_ARTICLE",        2.2)
-        _edge(a_id, o_id,   "IMPOSES",             2.2)
-        _edge(o_id, pen_id, "VIOLATION_TRIGGERS",  2.0)
+        _edge(r_id, a_id,   "HAS_ARTICLE",       2.4)
+        _edge(a_id, o_id,   "IMPOSES",            2.0)
+        _edge(o_id, pen_id, "VIOLATION_TRIGGERS", 1.6)
+        if row.get("r") and r_id:
+            rp = _props(row["r"])
+            reg_id = rp.get("reg_id", "")
+            if reg_id and reg_id not in seen_regs:
+                seen_regs[reg_id] = {"nid": r_id, "props": rp}
+
+    # ── 2. Wire each Regulation → its Category hubs ───────────────────────────
+    for reg_id, info in seen_regs.items():
+        r_nid = info["nid"]
+        rp    = info["props"]
+        cats  = _REG_CATEGORIES.get(reg_id, {})
+
+        # Jurisdiction hub — pulled from the DB `jurisdiction` property
+        juris = rp.get("jurisdiction", "")
+        if juris:
+            j_nid = _hub("HubJurisdiction", juris)
+            _edge(r_nid, j_nid, "APPLIES_IN", 2.2)
+
+        # Domain hubs
+        for domain in cats.get("domains", []):
+            d_nid = _hub("HubDomain", domain)
+            _edge(r_nid, d_nid, "FALLS_UNDER", 1.8)
+
+        # Stage hubs
+        for stage in cats.get("stages", []):
+            s_nid = _hub("HubStage", stage)
+            _edge(r_nid, s_nid, "TRIGGERS_AT", 1.6)
+
+        # Material hubs
+        for mat in cats.get("materials", []):
+            m_nid = _hub("HubMaterial", mat)
+            _edge(r_nid, m_nid, "COVERS_MATERIAL", 1.6)
 
     return list(node_map.values()), edges
 
@@ -641,10 +784,14 @@ JOURNEY_LEGEND = [
 ]
 
 REGULATORY_LEGEND = [
-    ("Regulation",  "star"),
-    ("Article",     "box"),
-    ("Obligation",  "diamond"),
-    ("Penalty",     "triangle"),
+    ("Regulation",      "star"),
+    ("HubJurisdiction", "hexagon"),
+    ("HubDomain",       "hexagon"),
+    ("HubStage",        "hexagon"),
+    ("HubMaterial",     "hexagon"),
+    ("Article",         "box"),
+    ("Obligation",      "diamond"),
+    ("Penalty",         "triangle"),
 ]
 
 SKU_LEGEND = [

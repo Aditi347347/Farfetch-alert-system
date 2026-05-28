@@ -322,18 +322,29 @@ async def _run_agents(order_id):
 # ═══════════════════════════════════════════════════════════════════════════════
 #  SESSION STATE
 # ═══════════════════════════════════════════════════════════════════════════════
+# Bump _REG_GRAPH_VER whenever build_regulatory_graph changes so stale
+# session-state caches are automatically invalidated on redeploy.
+_REG_GRAPH_VER = "v3-network"
+
 for key, default in [
-    ("order_id",      "ORD-1001"),
-    ("results",       None),
-    ("run_error",     None),
-    ("rca_order_id",  None),
-    ("rca_data",      None),
-    ("viz_order_id",  "ORD-1001"),
-    ("viz_reg_nodes", None),   # cached regulatory graph
-    ("viz_reg_edges", None),
+    ("order_id",       "ORD-1001"),
+    ("results",        None),
+    ("run_error",      None),
+    ("rca_order_id",   None),
+    ("rca_data",       None),
+    ("viz_order_id",   "ORD-1001"),
+    ("viz_reg_nodes",  None),        # cached regulatory graph nodes
+    ("viz_reg_edges",  None),        # cached regulatory graph edges
+    ("viz_reg_ver",    None),        # version stamp — if stale, graph is rebuilt
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
+
+# Invalidate cache if graph builder version changed
+if st.session_state.get("viz_reg_ver") != _REG_GRAPH_VER:
+    st.session_state.viz_reg_nodes = None
+    st.session_state.viz_reg_edges = None
+    st.session_state.viz_reg_ver   = _REG_GRAPH_VER
 
 def set_preset(val):
     st.session_state.order_id = val
@@ -1417,7 +1428,10 @@ with tab_viz:
     # ── REGULATORY FRAMEWORK ─────────────────────────────────────────────────
     with vt1:
         st.markdown(
-            "**Regulatory Framework** — Regulations &rarr; Articles &rarr; Obligations &rarr; Penalties"
+            "**Regulatory Network** — regulations interconnected through shared category hubs. "
+            "Hexagons = shared context (Jurisdiction · Domain · Stage · Material). "
+            "Two regulations sharing a hexagon hub are related. "
+            "Stars = Regulations &rarr; Articles &rarr; Obligations &rarr; Penalties."
         )
 
         # Load regulatory graph (cached in session state)
