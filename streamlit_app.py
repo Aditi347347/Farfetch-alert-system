@@ -346,94 +346,140 @@ def set_rca_order(val):
 #  GLOBAL CSS + HEADER
 # ═══════════════════════════════════════════════════════════════════════════════
 st.markdown("""
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* ── EXL typography ── */
+  html, body, .stApp, [class*="css"], p, span, div, label, input, button {
+      font-family: 'Inter', -apple-system, sans-serif !important;
+  }
+
   /* ── Layout ── */
   .block-container { padding-top: 0 !important; padding-bottom: 2rem; }
   section[data-testid="stSidebar"] { display: none; }
   div[data-testid="stRadio"] > div { gap: 6px; }
 
-  /* ── EXL tab styling ── */
+  /* ── Kill ALL border-radius — EXL uses sharp corners throughout ── */
+  *, *::before, *::after { border-radius: 0 !important; }
+
+  /* ── EXL tab styling — underline indicator, not filled pill ── */
   div[data-baseweb="tab-list"] {
-      background: #2C2117 !important;
-      border-radius: 8px;
-      padding: 4px;
-      gap: 2px;
+      background: transparent !important;
+      border-bottom: 1px solid #3d3020 !important;
+      padding: 0 !important;
+      gap: 0 !important;
   }
   div[data-baseweb="tab"] {
-      color: #a8956a !important;
-      font-weight: 600;
-      border-radius: 6px !important;
+      color: #7a6a50 !important;
+      font-weight: 500 !important;
+      font-size: 11px !important;
+      letter-spacing: 1.5px !important;
+      text-transform: uppercase !important;
+      padding: 10px 22px !important;
+      border-bottom: 2px solid transparent !important;
+      background: transparent !important;
   }
   div[data-baseweb="tab"][aria-selected="true"] {
-      background: #C9A84C !important;
-      color: #18140F !important;
+      color: #C9A84C !important;
+      border-bottom: 2px solid #C9A84C !important;
+      background: transparent !important;
   }
-  div[data-baseweb="tab-highlight"] { display: none !important; }
+  div[data-baseweb="tab-highlight"],
+  div[data-baseweb="tab-border"] { display: none !important; }
 
-  /* ── EXL button styling ── */
+  /* ── Buttons ── */
+  div[data-testid="stButton"] > button {
+      border: 1px solid #3d3020 !important;
+      background: transparent !important;
+      color: #a8956a !important;
+      font-size: 10px !important;
+      font-weight: 600 !important;
+      letter-spacing: 1.5px !important;
+      text-transform: uppercase !important;
+  }
   div[data-testid="stButton"] > button[kind="primary"] {
       background: #C9A84C !important;
       color: #18140F !important;
-      font-weight: 700;
-      border: none;
+      border: 1px solid #C9A84C !important;
+  }
+  div[data-testid="stButton"] > button:hover {
+      border-color: #C9A84C !important;
+      color: #C9A84C !important;
   }
   div[data-testid="stButton"] > button[kind="primary"]:hover {
       background: #b8952f !important;
+      color: #18140F !important;
   }
 
-  /* ── Metric cards ── */
+  /* ── Text inputs ── */
+  div[data-baseweb="input"] > div {
+      border: 1px solid #3d3020 !important;
+      background: #2C2117 !important;
+  }
+  div[data-baseweb="input"] input {
+      color: #F5EDD6 !important;
+      font-family: 'Inter', sans-serif !important;
+  }
+
+  /* ── Metric cards — sharp, outlined ── */
   div[data-testid="stMetric"] {
-      background: #2C2117;
-      border: 1px solid #3d3020;
-      border-radius: 8px;
-      padding: 12px 16px;
+      background: transparent !important;
+      border: 1px solid #3d3020 !important;
+      border-top: 2px solid #C9A84C !important;
+      padding: 14px 16px !important;
   }
-  div[data-testid="stMetric"] label { color: #a8956a !important; }
+  div[data-testid="stMetric"] label {
+      color: #7a6a50 !important;
+      font-size: 9px !important;
+      letter-spacing: 2.5px !important;
+      text-transform: uppercase !important;
+  }
   div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-      color: #C9A84C !important;
+      color: #F5EDD6 !important;
+      font-family: 'Cormorant Garamond', serif !important;
+      font-size: 2rem !important;
   }
+
+  /* ── Checkbox & radio ── */
+  div[data-testid="stCheckbox"] span[data-testid="stWidgetLabel"],
+  div[data-testid="stRadio"] span[data-testid="stWidgetLabel"] {
+      font-size: 11px !important;
+      color: #a8956a !important;
+      letter-spacing: 0.5px !important;
+  }
+
+  /* ── Divider ── */
+  hr { border-color: #3d3020 !important; }
 </style>
 """, unsafe_allow_html=True)
 
 # ── EXL header bar ────────────────────────────────────────────────────────────
 st.markdown("""
-<div style="
-  background: linear-gradient(90deg, #1B1208 0%, #231910 50%, #1B1208 100%);
-  border-bottom: 2px solid #C9A84C;
-  padding: 14px 28px;
-  margin: -1rem -1rem 1.5rem -1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-">
-  <div style="display:flex; align-items:center; gap:16px;">
-    <!-- EXL logo block -->
-    <div style="
-      background:#E31837;
-      padding: 8px 12px;
-      border-radius: 5px;
-      font-weight: 900;
-      font-size: 18px;
-      color: white;
-      letter-spacing: 2px;
-      line-height: 1;
-    ">EXL</div>
-    <!-- Title block -->
+<div style="background:#18140F;border-bottom:1px solid #3d3020;
+            padding:14px 28px;margin:-1rem -1rem 1.5rem -1rem;
+            display:flex;justify-content:space-between;align-items:center;
+            font-family:'Inter',sans-serif">
+  <div style="display:flex;align-items:center;gap:16px">
+    <div style="background:#E31837;padding:7px 11px;
+                font-weight:900;font-size:16px;color:white;letter-spacing:2px;
+                line-height:1;font-family:'Inter',sans-serif">EXL</div>
     <div>
-      <div style="color:#C9A84C; font-size:9px; font-weight:700; letter-spacing:4px; text-transform:uppercase; margin-bottom:2px;">
+      <div style="color:#7a6a50;font-size:8px;font-weight:600;
+                  letter-spacing:4px;text-transform:uppercase;margin-bottom:3px">
         Compliance Intelligence
       </div>
-      <div style="color:#F5EDD6; font-size:16px; font-weight:700; letter-spacing:0.5px;">
-        Farfetch Alert System
+      <div style="color:#F5EDD6;font-size:15px;font-weight:400;letter-spacing:0.5px;
+                  font-family:'Cormorant Garamond',serif">
+        Farfetch <em>Alert System</em>
       </div>
     </div>
   </div>
-  <div style="text-align:right;">
-    <div style="color:#C9A84C; font-size:11px; font-weight:600; letter-spacing:1px;">
-      &#9679; LIVE
+  <div style="text-align:right">
+    <div style="color:#C9A84C;font-size:9px;font-weight:600;letter-spacing:2px">
+      &#9679;&nbsp;LIVE
     </div>
-    <div style="color:#7a6a50; font-size:11px; margin-top:2px;">
-      Graph-native &middot; Multi-agent &middot; Neo4j
+    <div style="color:#4a3e2e;font-size:10px;margin-top:3px;letter-spacing:1px">
+      GRAPH-NATIVE &middot; MULTI-AGENT &middot; NEO4J
     </div>
   </div>
 </div>
@@ -602,9 +648,12 @@ with tab_check:
                 certs     = sku.get("certs")     or []
 
                 def chip(text, bg="#e8edf5", fg="#1a3a5c"):
+                    # EXL style: outlined, sharp, no fill
                     return (
-                        f'<span style="background:{bg};color:{fg};padding:2px 8px;border-radius:10px;'
-                        f'font-size:11px;font-weight:600;margin:2px 3px 2px 0;display:inline-block">'
+                        f'<span style="background:transparent;color:{fg};padding:2px 8px;'
+                        f'border:1px solid {fg};'
+                        f'font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;'
+                        f'margin:2px 3px 2px 0;display:inline-block">'
                         f'{text}</span>'
                     )
 
@@ -791,10 +840,11 @@ with tab_check:
 with tab_rca:
 
     # ── Colour maps ───────────────────────────────────────────────────────────
+    # EXL: text color only (outlined badge), no fill
     FINE_STATUS_COLOR = {
-        "PAID":         ("#1e8449", "#d5f5e3"),
-        "UNDER_APPEAL": ("#d35400", "#fdebd0"),
-        "PAYMENT_PLAN": ("#1a4f8a", "#eaf3ff"),
+        "PAID":         ("#1e8449", "transparent"),
+        "UNDER_APPEAL": ("#d35400", "transparent"),
+        "PAYMENT_PLAN": ("#C9A84C", "transparent"),
     }
     CP_STAGE_COLOR = {
         "ORDER_INTAKE":       "#1a4f8a",
@@ -807,9 +857,12 @@ with tab_rca:
     SEV_COL = {"critical": "#c0392b", "high": "#e67e22", "medium": "#d4a017"}
 
     def _chip2(text, bg="#e8edf5", fg="#1a3a5c", size="11px"):
+        # EXL style: outlined, sharp, no fill
         return (
-            f'<span style="background:{bg};color:{fg};padding:3px 9px;border-radius:10px;'
-            f'font-size:{size};font-weight:600;margin:2px 3px 2px 0;display:inline-block">'
+            f'<span style="background:transparent;color:{fg};padding:2px 8px;'
+            f'border:1px solid {fg};'
+            f'font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;'
+            f'margin:2px 3px 2px 0;display:inline-block">'
             f'{text}</span>'
         )
 
@@ -882,23 +935,29 @@ with tab_rca:
             st.markdown("<br>", unsafe_allow_html=True)
 
             # ── Pipeline banner ───────────────────────────────────────────────
-            st.markdown("**🔁 Compliance Pipeline — 6 Checkpoints**")
+            st.markdown(
+                '<div style="font-size:9px;font-weight:600;letter-spacing:3px;'
+                'text-transform:uppercase;color:#7a6a50;margin-bottom:10px">'
+                'Compliance Pipeline &mdash; 6 Checkpoints</div>',
+                unsafe_allow_html=True,
+            )
             if checkpoints:
-                cp_html = ('<div style="display:flex;align-items:center;gap:4px;'
-                           'flex-wrap:wrap;margin-bottom:16px">')
+                cp_html = ('<div style="display:flex;align-items:stretch;gap:0;'
+                           'flex-wrap:wrap;margin-bottom:16px;border:1px solid #3d3020">')
                 for i, cp in enumerate(checkpoints):
-                    stage   = cp.get("stage", "")
-                    col_hex = CP_STAGE_COLOR.get(stage, "#1a3a5c")
+                    stage = cp.get("stage", "")
+                    is_last = (i == len(checkpoints) - 1)
+                    border_right = "" if is_last else "border-right:1px solid #3d3020;"
                     cp_html += (
-                        f'<div style="background:{col_hex};color:white;padding:7px 14px;'
-                        f'border-radius:8px;font-size:12px;font-weight:600;text-align:center;'
-                        f'min-width:130px">'
-                        f'<div style="font-size:10px;opacity:.8">CP-0{i+1}</div>'
+                        f'<div style="{border_right}padding:8px 14px;'
+                        f'font-size:10px;font-weight:600;text-align:center;'
+                        f'flex:1;min-width:100px;color:#7a6a50;">'
+                        f'<div style="font-size:8px;letter-spacing:2px;color:#4a3e2e;'
+                        f'margin-bottom:4px">CP-0{i+1}</div>'
+                        f'<div style="letter-spacing:0.5px">'
                         f'{stage.replace("_", " ")}</div>'
+                        f'</div>'
                     )
-                    if i < len(checkpoints) - 1:
-                        cp_html += ('<div style="color:#9ca3af;font-size:18px;'
-                                    'font-weight:700">&#8594;</div>')
                 cp_html += '</div>'
                 st.markdown(cp_html, unsafe_allow_html=True)
 
@@ -1258,13 +1317,15 @@ with tab_rca:
                                     f'  <span style="font-family:monospace;font-weight:700;'
                                     f'color:#1a1a1a">{fn_r.get("finding_id","")}</span>'
                                     f'  <div>'
-                                    f'    <span style="background:{col_r};color:white;padding:2px 8px;'
-                                    f'border-radius:8px;font-size:11px;font-weight:700">'
+                                    f'    <span style="background:transparent;color:{col_r};'
+                                    f'border:1px solid {col_r};padding:2px 8px;'
+                                    f'font-size:9px;font-weight:600;letter-spacing:1px">'
                                     f'{sev_r.upper()}</span>'
                                     f'    &nbsp;'
-                                    f'    <span style="background:{cp_col2};color:white;'
-                                    f'padding:2px 8px;border-radius:8px;font-size:11px;'
-                                    f'font-weight:700">{cp_stg.replace("_"," ")}</span>'
+                                    f'    <span style="background:transparent;color:#7a6a50;'
+                                    f'border:1px solid #3d3020;padding:2px 8px;'
+                                    f'font-size:9px;font-weight:500;letter-spacing:1px">'
+                                    f'{cp_stg.replace("_"," ")}</span>'
                                     f'  </div>'
                                     f'</div>'
                                     f'<div style="font-size:13px;color:#374151;line-height:1.5">'

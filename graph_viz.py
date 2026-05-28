@@ -638,20 +638,20 @@ CONTEXT_LEGEND = [
 def render_legend(items: list[tuple[str, str]]) -> str:
     """Return an EXL-styled HTML legend strip for the node types in this graph."""
     html = (
-        '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0 0;'
-        'padding:8px 12px;background:#2C2117;border-radius:6px;'
-        'border:1px solid #3d3020">'
+        '<div style="display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 0 0;'
+        'padding:8px 12px;background:#2C2117;'
+        'border:1px solid #3d3020;border-top:1px solid #C9A84C">'
     )
     for label, _ in items:
         st = NODE_VIZ.get(label, {"color": "#778899"})
         c  = st["color"]
         html += (
             f'<div style="display:flex;align-items:center;gap:5px;'
-            f'padding:2px 8px;border-radius:4px;background:#18140F">'
-            f'<div style="width:10px;height:10px;border-radius:2px;background:{c};'
-            f'border:1px solid rgba(201,168,76,.4);flex-shrink:0"></div>'
-            f'<span style="font-size:10px;color:#C9A84C;font-weight:600;'
-            f'letter-spacing:0.5px">{label}</span>'
+            f'padding:2px 8px;background:#18140F;border:1px solid #3d3020">'
+            f'<div style="width:8px;height:8px;background:{c};'
+            f'flex-shrink:0"></div>'
+            f'<span style="font-size:9px;color:#7a6a50;font-weight:600;'
+            f'letter-spacing:1px;text-transform:uppercase">{label}</span>'
             f'</div>'
         )
     html += '</div>'
