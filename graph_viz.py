@@ -70,9 +70,10 @@ EDGE_COLORS: dict[str, str] = {
     "MANUFACTURED_IN":      "#27AE60",
     "COMPLIES_WITH":        "#7D3C98",
     "CERTIFIED_BY":         "#17A589",
-    "AFFECTS":              "#FF4500",
+    "AFFECTS":              "#FF6B35",
     "VIOLATES":             "#B03A2E",
     "CAUGHT_AT":            "#20B2AA",
+    "HAS_ANOMALY":          "#FFA07A",
     "HAS_RCA":              "#8B0000",
     "ESCALATED_TO":         "#E50000",
     "UNDER_REGULATION":     "#C0392B",
@@ -539,22 +540,28 @@ def build_context_subgraph(tx, oid: str) -> tuple[list, list]:
         cr_id = _add("ComplianceRun", cr_rec["cr"])
         _edge(ord_id, cr_id, "HAD_COMPLIANCE_RUN", 2.4)
 
-    # ── Findings + Checkpoints + Obligations + DataAnomalies ─────────────────────
+    # ── ALL Findings for this order ───────────────────────────────────────────────
+    # Query by order_id property so we catch EVERY finding the agents raised,
+    # including ones that only have (Finding)-[:AFFECTS]->(Order) and are NOT
+    # wired through a ComplianceRun via RAISED_FINDING.
+    # We also check whether a RAISED_FINDING link exists so we can choose
+    # the correct parent node in the graph.
     fn_rows = tx.run("""
-        MATCH (o:Order {order_id:$oid})-[:HAD_COMPLIANCE_RUN]->(cr:ComplianceRun)
-              -[:RAISED_FINDING]->(fn:Finding)
+        MATCH (fn:Finding) WHERE fn.order_id = $oid
         OPTIONAL MATCH (fn)-[:CAUGHT_AT]->(cp:Checkpoint)
         OPTIONAL MATCH (fn)-[:VIOLATES]->(obl:Obligation)
         OPTIONAL MATCH (fn)-[:HAS_ANOMALY]->(anom:DataAnomaly)
-        RETURN fn, cp, obl, anom
+        OPTIONAL MATCH (cr2:ComplianceRun)-[:RAISED_FINDING]->(fn)
+        RETURN fn, cp, obl, anom, (cr2 IS NOT NULL) AS via_cr
     """, oid=oid).data()
 
     SEV_COL = {"critical": "#c0392b", "high": "#e67e22", "medium": "#d4a017"}
     for row in fn_rows:
-        fn   = row.get("fn")
-        cp   = row.get("cp")
-        obl  = row.get("obl")
-        anom = row.get("anom")
+        fn     = row.get("fn")
+        cp     = row.get("cp")
+        obl    = row.get("obl")
+        anom   = row.get("anom")
+        via_cr = row.get("via_cr", False)
 
         if not fn:
             continue
@@ -563,8 +570,11 @@ def build_context_subgraph(tx, oid: str) -> tuple[list, list]:
         sev = p.get("severity", "")
         fid = _add("Finding", fn, override_color=SEV_COL.get(sev, "#FF4500"))
 
-        if cr_id:
+        # Connect to ComplianceRun if wired that way, else fall back to Order
+        if via_cr and cr_id:
             _edge(cr_id, fid, "RAISED_FINDING", 1.8)
+        else:
+            _edge(ord_id, fid, "AFFECTS", 1.4)
 
         # Where was it caught?
         if cp:
